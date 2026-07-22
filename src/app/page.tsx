@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -8,6 +8,14 @@ type RegexResult = {
   pattern: string;
   flags: string;
   explanation: { token: string; description: string }[];
+  remaining?: number;
+  limit?: number;
+};
+
+type UsageInfo = {
+  used: number;
+  remaining: number;
+  limit: number;
 };
 
 /* ─── Demo data ─────────────────────────────────────── */
@@ -31,7 +39,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [testText, setTestText] = useState(DEMO_TEST_TEXT);
   const [copied, setCopied] = useState(false);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const testRef = useRef<HTMLTextAreaElement>(null);
+
+  /* Load quota on mount */
+  useEffect(() => {
+    fetch("/api/quota")
+      .then((r) => r.json())
+      .then((data) => setUsage(data))
+      .catch(() => {});
+  }, []);
 
   /* Generate regex */
   const generateRegex = useCallback(async () => {
@@ -49,6 +67,9 @@ export default function Home() {
         return;
       }
       setResult(data);
+      if (data.remaining !== undefined) {
+        setUsage((prev) => prev ? { ...prev, remaining: data.remaining, used: prev.limit - data.remaining } : null);
+      }
     } catch (err) {
       console.error("[generate]", err);
     } finally {
@@ -86,6 +107,22 @@ export default function Home() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [result]);
+
+  /* Stripe checkout */
+  const handleUpgrade = useCallback(async () => {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error("[upgrade]", err);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }, []);
 
   /* Build highlighted test output */
   const highlightedTest = (() => {
@@ -341,14 +378,20 @@ export default function Home() {
             {/* Usage footer */}
             <div className="flex items-center justify-between text-sm text-muted">
               <div className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-gray-300" />
+                <span className={`inline-block w-2 h-2 rounded-full ${usage && usage.remaining > 0 ? 'bg-green-400' : 'bg-red-400'}`} />
                 <span>
                   Daily free usage:{" "}
-                  <span className="font-medium text-foreground">3 of 5</span>
+                  <span className="font-medium text-foreground">
+                    {usage ? `${usage.limit - usage.remaining} of ${usage.limit}` : "..."}
+                  </span>
                 </span>
               </div>
-              <button className="text-accent hover:text-accent/80 font-medium transition-colors">
-                Upgrade for unlimited &rarr;
+              <button
+                onClick={handleUpgrade}
+                disabled={checkoutLoading}
+                className="text-accent hover:text-accent/80 font-medium transition-colors disabled:opacity-50"
+              >
+                {checkoutLoading ? "Loading..." : "Upgrade for unlimited →"}
               </button>
             </div>
           </div>

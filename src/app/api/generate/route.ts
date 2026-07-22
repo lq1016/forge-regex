@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createHash } from "crypto";
+import { checkAndIncrement } from "@/lib/quota";
+
+/* ─── Helpers ──────────────────────────────────────── */
+
+function getIpHash(req: NextRequest): string {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+  return createHash("sha256").update(ip).digest("hex").slice(0, 16);
+}
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -51,6 +63,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Please provide a description of the pattern you want to match." },
         { status: 400 }
+      );
+    }
+
+    /* ─── Quota check ──────────────────────────────── */
+    const quota = await checkAndIncrement(getIpHash(req));
+    if (!quota.allowed) {
+      return NextResponse.json(
+        {
+          error: "Daily free limit reached. Upgrade to unlimited.",
+          remaining: 0,
+          limit: quota.limit,
+        },
+        { status: 429 }
       );
     }
 
@@ -125,6 +150,8 @@ export async function POST(req: NextRequest) {
       pattern,
       flags: flags || "",
       explanation: Array.isArray(explanation) ? explanation : [],
+      remaining: quota.remaining,
+      limit: quota.limit,
     });
   } catch (err: unknown) {
     const message =
