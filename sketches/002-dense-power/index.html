@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forge Regex — AI Regex Builder</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    background: #0f0f11;
+    color: #e4e4e7;
+  }
+  .regex-code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  .match-highlight {
+    background: #2dd4bf40;
+    border-radius: 2px;
+    padding: 0 1px;
+    border-bottom: 2px solid #2dd4bf;
+  }
+  .match-count {
+    background: #2dd4bf20;
+    color: #2dd4bf;
+  }
+  .pane {
+    background: #18181b;
+    border: 1px solid #27272a;
+  }
+  .input-pane {
+    background: #18181b;
+  }
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #71717a;
+  }
+  .btn-accent {
+    transition: all 0.12s ease;
+  }
+  .btn-accent:hover {
+    filter: brightness(1.1);
+  }
+  .fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .tab-selected {
+    border-bottom: 2px solid #2dd4bf;
+    color: #2dd4bf;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  ::selection {
+    background: #2dd4bf40;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="flex items-center justify-between px-5 py-3 border-b border-[#27272a]">
+  <div class="flex items-center gap-3">
+    <div class="w-6 h-6 bg-teal-500 rounded flex items-center justify-center">
+      <span class="text-[11px] font-bold text-black">/</span>
+    </div>
+    <span class="font-semibold text-sm tracking-tight text-gray-100">Forge Regex</span>
+    <span class="text-[11px] text-gray-600 px-2 py-0.5 border border-[#27272a] rounded">beta</span>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-gray-500">3/5 free today</span>
+    <button class="text-xs px-3 py-1.5 bg-teal-500 text-black font-medium rounded-lg btn-accent">
+      Unlimited → $7/mo
+    </button>
+    <button class="text-xs px-3 py-1.5 border border-[#27272a] text-gray-300 rounded-lg hover:bg-[#27272a] transition-colors">
+      Sign in
+    </button>
+  </div>
+</div>
+
+<!-- Main Layout: Split pane -->
+<div class="flex h-[calc(100vh-53px)]">
+
+  <!-- Left Pane: Prompt + Generated Regex -->
+  <div class="w-1/2 flex flex-col border-r border-[#27272a]">
+
+    <!-- Prompt bar -->
+    <div class="p-4 border-b border-[#27272a]">
+      <div class="flex gap-2">
+        <input
+          type="text"
+          id="prompt"
+          value="extract all URLs from text"
+          class="flex-1 bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all"
+          placeholder="Describe the pattern in English..."
+        />
+        <button class="px-5 py-2 bg-teal-500 text-black text-sm font-medium rounded-lg btn-accent" onclick="generate()">
+          Generate
+        </button>
+      </div>
+      <div class="flex gap-1.5 mt-2">
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors" onclick="fillPrompt(this)">email</button>
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors" onclick="fillPrompt(this)">Chinese phone</button>
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors" onclick="fillPrompt(this)">dates</button>
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors" onclick="fillPrompt(this)">password</button>
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors" onclick="fillPrompt(this)">IP address</button>
+      </div>
+    </div>
+
+    <!-- Generated result -->
+    <div class="flex-1 overflow-y-auto p-4 fade-in">
+      <div class="flex items-center justify-between mb-3">
+        <span class="sidebar-label">Generated Regex</span>
+        <button class="text-[11px] px-2 py-1 bg-[#27272a] hover:bg-[#3f3f46] rounded text-gray-400 transition-colors regex-code" onclick="copyIt(this)">
+          📋 Copy
+        </button>
+      </div>
+
+      <div class="regex-code text-sm bg-[#09090b] rounded-lg p-3 border border-[#27272a] mb-4 overflow-x-auto" id="regex-display">
+        <span class="text-teal-400">/</span><span class="text-gray-200">https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)</span><span class="text-teal-400">/gi</span>
+      </div>
+
+      <!-- Explanation (collapsible) -->
+      <details open>
+        <summary class="sidebar-label cursor-pointer hover:text-gray-300 transition-colors mb-2">Explanation</summary>
+        <div class="space-y-2 text-sm text-gray-400 mt-2">
+          <div class="flex gap-2">
+            <code class="text-teal-400 text-xs shrink-0 bg-[#09090b] px-1.5 py-0.5 rounded border border-[#27272a]">https?:\/\/</code>
+            <span>Matches <code class="text-xs text-gray-300 bg-[#09090b] px-1 rounded">http://</code> or <code class="text-xs text-gray-300 bg-[#09090b] px-1 rounded">https://</code></span>
+          </div>
+          <div class="flex gap-2">
+            <code class="text-teal-400 text-xs shrink-0 bg-[#09090b] px-1.5 py-0.5 rounded border border-[#27272a]">(www\.)?</code>
+            <span>Optional <code class="text-xs text-gray-300 bg-[#09090b] px-1 rounded">www.</code> prefix</span>
+          </div>
+          <div class="flex gap-2">
+            <code class="text-teal-400 text-xs shrink-0 bg-[#09090b] px-1.5 py-0.5 rounded border border-[#27272a]">[-a-zA-Z0-9@:%._\+~#=]{1,256}</code>
+            <span>Domain name (1-256 chars)</span>
+          </div>
+          <div class="flex gap-2">
+            <code class="text-teal-400 text-xs shrink-0 bg-[#09090b] px-1.5 py-0.5 rounded border border-[#27272a]">\.[a-zA-Z0-9()]{1,6}</code>
+            <span>TLD: <code class="text-xs text-gray-300 bg-[#09090b] px-1 rounded">.com</code>, <code class="text-xs text-gray-300 bg-[#09090b] px-1 rounded">.org</code>, etc.</span>
+          </div>
+          <div class="flex gap-2">
+            <code class="text-teal-400 text-xs shrink-0 bg-[#09090b] px-1.5 py-0.5 rounded border border-[#27272a]">[-\w\/?=&%.]</code>
+            <span>Query string, paths</span>
+          </div>
+          <div class="mt-2 text-xs text-gray-600">
+            Flags: <span class="text-gray-400">g</span> (global) · <span class="text-gray-400">i</span> (case-insensitive)
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Right Pane: Test Area -->
+  <div class="w-1/2 flex flex-col">
+    <!-- Tabs -->
+    <div class="flex border-b border-[#27272a] px-4">
+      <button class="tab-selected px-4 py-2.5 text-xs font-medium text-gray-400">Test</button>
+      <button class="px-4 py-2.5 text-xs font-medium text-gray-600 hover:text-gray-300 transition-colors">History</button>
+      <button class="px-4 py-2.5 text-xs font-medium text-gray-600 hover:text-gray-300 transition-colors">Export</button>
+    </div>
+
+    <!-- Result summary -->
+    <div class="flex items-center justify-between px-4 py-2 border-b border-[#27272a]">
+      <span class="text-xs text-gray-500">Enter test string below</span>
+      <span class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+        <span class="text-xs font-medium text-gray-300">3 matches</span>
+      </span>
+    </div>
+
+    <!-- Input -->
+    <div class="border-b border-[#27272a]">
+      <textarea
+        id="test-input"
+        class="w-full h-24 bg-[#09090b] px-4 py-3 text-sm text-gray-300 focus:outline-none resize-none placeholder-gray-600"
+        placeholder="Paste sample text to test against..."
+      >Visit https://example.com for docs. Our blog at https://forge-regex.dev/blog has tutorials. Also check http://localhost:3000 for local dev.</textarea>
+    </div>
+
+    <!-- Highlighted matches -->
+    <div class="flex-1 p-4 overflow-y-auto">
+      <div class="text-sm leading-7 text-gray-400 regex-code" id="highlighted">
+        Visit <span class="match-highlight">https://example.com</span> for docs. Our blog at <span class="match-highlight">https://forge-regex.dev/blog</span> has tutorials. Also check <span class="match-highlight">http://localhost:3000</span> for local dev.
+      </div>
+
+      <!-- Match list -->
+      <div class="mt-4 pt-4 border-t border-[#27272a]">
+        <span class="sidebar-label text-[11px] mb-2 block">Match Results</span>
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-gray-600 border-b border-[#27272a]">
+              <th class="text-left py-2 font-medium">#</th>
+              <th class="text-left py-2 font-medium">Match</th>
+              <th class="text-right py-2 font-medium">Position</th>
+            </tr>
+          </thead>
+          <tbody class="text-gray-400">
+            <tr class="border-b border-[#27272a]/50 hover:bg-[#18181b]">
+              <td class="py-1.5 text-gray-600">1</td>
+              <td class="py-1.5 text-teal-300 regex-code">https://example.com</td>
+              <td class="py-1.5 text-right text-gray-600">6-26</td>
+            </tr>
+            <tr class="border-b border-[#27272a]/50 hover:bg-[#18181b]">
+              <td class="py-1.5 text-gray-600">2</td>
+              <td class="py-1.5 text-teal-300 regex-code">https://forge-regex.dev/blog</td>
+              <td class="py-1.5 text-right text-gray-600">64-91</td>
+            </tr>
+            <tr class="hover:bg-[#18181b]">
+              <td class="py-1.5 text-gray-600">3</td>
+              <td class="py-1.5 text-teal-300 regex-code">http://localhost:3000</td>
+              <td class="py-1.5 text-right text-gray-600">110-132</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function generate() {
+    // Demo: result area is already populated
+    // In production, call API here
+  }
+  function fillPrompt(el) {
+    document.getElementById('prompt').value = el.textContent;
+    generate();
+  }
+  function copyIt(el) {
+    const text = document.querySelector('#regex-display').textContent;
+    navigator.clipboard.writeText(text);
+    const orig = el.textContent;
+    el.textContent = '✓ Copied';
+    setTimeout(() => el.textContent = orig, 1500);
+  }
+</script>
+
+</body>
+</html>
