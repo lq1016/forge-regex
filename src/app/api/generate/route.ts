@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { createHash } from "crypto";
 import { checkAndIncrement } from "@/lib/quota";
-
-/* ─── Helpers ──────────────────────────────────────── */
-
-function getIpHash(req: NextRequest): string {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
-  return createHash("sha256").update(ip).digest("hex").slice(0, 16);
-}
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -67,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     /* ─── Quota check ──────────────────────────────── */
-    const quota = await checkAndIncrement(getIpHash(req));
+    const quota = await checkAndIncrement();
     if (!quota.allowed) {
       return NextResponse.json(
         {

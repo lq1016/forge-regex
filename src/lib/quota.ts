@@ -1,55 +1,87 @@
-import { kv } from "@vercel/kv";
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
 
-const FREE_DAILY_LIMIT = 5;
+const SECRET = new TextEncoder().encode(
+  process.env.QUOTA_SECRET || "forge-regex-default-secret-change-in-prod"
+);
+
+const COOKIE_NAME = "forge-usage";
+const FREE_LIMIT = 5;
+
+type UsagePayload = {
+  /** date string YYYY-MM-DD */
+  d: string;
+  /** usage count */
+  c: number;
+};
 
 /**
- * Get remaining free usage for an IP.
- * Returns { used, remaining, limit }
+ * Read usage from the signed cookie (or return fresh for today).
  */
-export async function getUsage(ipHash: string): Promise<{
+async function readUsage(): Promise<UsagePayload> {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(COOKIE_NAME)?.value;
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (raw) {
+    try {
+      const { payload } = await jwtVerify<UsagePayload>(raw, SECRET);
+      if (payload.d === today) return payload;
+    } catch {
+      // invalid / tampered token — treat as fresh
+    }
+  }
+  return { d: today, c: 0 };
+}
+
+/**
+ * Write usage to a signed cookie.
+ */
+async function writeUsage(payload: UsagePayload): Promise<void> {
+  const cookieStore = await cookies();
+  const token = await new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1d")
+    .sign(SECRET);
+
+  cookieStore.set(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 86_400, // 24h
+    path: "/",
+  });
+}
+
+/** Get current usage info (no side effects). */
+export async function getUsage(): Promise<{
   used: number;
   remaining: number;
   limit: number;
 }> {
-  const key = `usage:${ipHash}:${today()}`;
-  const used = (await kv.get<number>(key)) ?? 0;
+  const p = await readUsage();
+  return { used: p.c, remaining: Math.max(0, FREE_LIMIT - p.c), limit: FREE_LIMIT };
+}
+
+/** Check quota and increment if allowed. */
+export async function checkAndIncrement(): Promise<{
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+}> {
+  const p = await readUsage();
+
+  if (p.c >= FREE_LIMIT) {
+    return { allowed: false, remaining: 0, limit: FREE_LIMIT };
+  }
+
+  const next: UsagePayload = { ...p, c: p.c + 1 };
+  await writeUsage(next);
+
   return {
-    used,
-    remaining: Math.max(0, FREE_DAILY_LIMIT - used),
-    limit: FREE_DAILY_LIMIT,
+    allowed: true,
+    remaining: FREE_LIMIT - next.c,
+    limit: FREE_LIMIT,
   };
-}
-
-/**
- * Increment usage counter atomically.
- * Returns the new count after increment.
- */
-export async function incrementUsage(ipHash: string): Promise<number> {
-  const key = `usage:${ipHash}:${today()}`;
-  // Set TTL so keys auto-expire at end of day (86400s = 24h)
-  const count = await kv.incr(key);
-  if (count === 1) {
-    await kv.expire(key, 86_400);
-  }
-  return count;
-}
-
-/**
- * Check if usage is allowed (under limit).
- */
-export async function checkAndIncrement(
-  ipHash: string
-): Promise<{ allowed: boolean; remaining: number; limit: number }> {
-  const { remaining, limit } = await getUsage(ipHash);
-
-  if (remaining <= 0) {
-    return { allowed: false, remaining: 0, limit };
-  }
-
-  await incrementUsage(ipHash);
-  return { allowed: true, remaining: remaining - 1, limit };
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
 }
