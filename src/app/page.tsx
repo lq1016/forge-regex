@@ -108,9 +108,20 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   }, [result]);
 
-  /* PayPal checkout */
+  /* Stripe checkout */
   const handleUpgrade = useCallback(async () => {
-    window.open("https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-0T636305KS9268527NJRVKHY", "_blank");
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error("[upgrade]", err);
+    } finally {
+      setCheckoutLoading(false);
+    }
   }, []);
 
   /* Build highlighted test output */
