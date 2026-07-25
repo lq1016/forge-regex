@@ -64,7 +64,22 @@ export async function getUsage(): Promise<{
   return { used: p.c, remaining: Math.max(0, FREE_LIMIT - p.c), limit: FREE_LIMIT };
 }
 
-/** Check quota and increment if allowed. */
+/** Check whether a free generation is still available (no side effects). */
+export async function checkQuota(): Promise<{
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+}> {
+  const p = await readUsage();
+  const remaining = Math.max(0, FREE_LIMIT - p.c);
+  return {
+    allowed: remaining > 0,
+    remaining,
+    limit: FREE_LIMIT,
+  };
+}
+
+/** Increment usage after a successful generation. */
 export async function checkAndIncrement(): Promise<{
   allowed: boolean;
   remaining: number;

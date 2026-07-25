@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { checkAndIncrement } from "@/lib/quota";
+import { checkAndIncrement, checkQuota } from "@/lib/quota";
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -55,26 +55,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* ─── Quota check ──────────────────────────────── */
-    const quota = await checkAndIncrement();
-    if (!quota.allowed) {
+    const quotaCheck = await checkQuota();
+    if (!quotaCheck.allowed) {
       return NextResponse.json(
         {
           error: "Daily free limit reached. Upgrade to unlimited.",
           remaining: 0,
-          limit: quota.limit,
+          limit: quotaCheck.limit,
         },
         { status: 429 }
       );
     }
 
-    /* Prod: call DeepSeek */
+    if (!process.env.DEEPSEEK_API_KEY) {
+      return NextResponse.json(
+        { error: "AI is not configured. Set DEEPSEEK_API_KEY in .env.local." },
+        { status: 503 }
+      );
+    }
+
     const client = new OpenAI({
-      apiKey: process.env.DEEPSEEK_API_KEY || "",
+      apiKey: process.env.DEEPSEEK_API_KEY,
       baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
     });
+    const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+
     const completion = await client.chat.completions.create({
-      model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      model,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -94,7 +101,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* Parse JSON response */
     let data: LLMResponse;
     try {
       data = JSON.parse(raw);
@@ -105,7 +111,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* Validate */
     if (!data.regex) {
       return NextResponse.json(
         {
@@ -125,15 +130,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /* Validate the regex compiles */
     try {
       new RegExp(pattern, flags);
     } catch {
       return NextResponse.json(
-        { error: "Generated regex failed validation. Please try rephrasing your request." },
+        {
+          error:
+            "Generated regex failed validation. Please try rephrasing your request.",
+        },
         { status: 502 }
       );
     }
+
+    const quota = await checkAndIncrement();
 
     return NextResponse.json({
       pattern,
@@ -143,12 +152,11 @@ export async function POST(req: NextRequest) {
       limit: quota.limit,
     });
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error";
+    const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[api/generate]", message);
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 }
-    );
+    const friendly = /model/i.test(message)
+      ? "AI model is misconfigured. Set DEEPSEEK_MODEL to deepseek-v4-flash or deepseek-v4-pro."
+      : "Something went wrong. Please try again.";
+    return NextResponse.json({ error: friendly }, { status: 500 });
   }
 }

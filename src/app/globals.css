@@ -1,33 +1,156 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #ffffff;
-  --color-foreground: #1a1a2e;
-  --color-muted: #6b7280;
-  --color-accent: #6366f1;
-  --color-accent-light: #eef2ff;
-  --color-border: #e5e7eb;
-  --color-surface: #f8f9fc;
-  --color-match: #fef08a;
-  --color-match-border: #facc15;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+  --color-background: #f3f4f6;
+  --color-foreground: #111318;
+  --color-muted: #5c6570;
+  --color-subtle: #8b939e;
+  --color-accent: #0d7377;
+  --color-accent-hover: #0a5c5f;
+  --color-accent-soft: #e6f4f4;
+  --color-accent-ring: #0d737733;
+  --color-border: #e2e5ea;
+  --color-border-strong: #c8ced6;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fafbfc;
+  --color-ink: #1a1d23;
+  --color-match: #d9f99d;
+  --color-match-border: #65a30d;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --font-sans: "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: "SF Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
+}
+
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-micro: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body {
-  background: var(--color-surface);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, #d4ebeb 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, #e8ecef 0%, transparent 45%),
+    linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
+  background-attachment: fixed;
   color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@keyframes fadeIn {
+::selection {
+  background: #0d737733;
+}
+
+@keyframes enter-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes nudge-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-enter {
+  animation: enter-up 0.4s var(--ease-out) both;
+}
+
+.animate-enter-delay-1 {
+  animation: enter-up 0.4s var(--ease-out) 0.06s both;
+}
+
+.animate-enter-delay-2 {
+  animation: enter-up 0.45s var(--ease-out) 0.12s both;
+}
+
+.animate-enter-delay-3 {
+  animation: enter-up 0.5s var(--ease-out) 0.18s both;
+}
+
+.animate-nudge {
+  animation: nudge-x 1.4s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float-y 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .animate-enter-delay-1,
+  .animate-enter-delay-2,
+  .animate-enter-delay-3,
+  .animate-nudge,
+  .animate-float {
+    animation: none;
+  }
+}
+
+.btn-press {
+  transition:
+    transform 0.12s var(--ease-micro),
+    background-color 0.15s var(--ease-micro),
+    box-shadow 0.2s var(--ease-out),
+    opacity 0.15s;
+}
+
+.btn-press:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-press:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.match-mark {
+  background: var(--color-match);
+  border-bottom: 2px solid var(--color-match-border);
+  border-radius: 2px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
