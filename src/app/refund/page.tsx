@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
+import { localeAlternates } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Refund Policy — Forge Regex",
   description: "Refund and cancellation policy for Forge Regex subscriptions.",
+  alternates: localeAlternates("/refund", "/cn/refund"),
 };
 
 export default function RefundPage() {
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <header className="px-5 sm:px-6 py-4 max-w-3xl mx-auto w-full">
         <Link
           href="/"
@@ -70,9 +72,9 @@ export default function RefundPage() {
               Email{" "}
               <a
                 className="text-accent hover:underline"
-                href="mailto:support@forge-regex.dev"
+                href="mailto:coderlau@live.com"
               >
-                support@forge-regex.dev
+                coderlau@live.com
               </a>{" "}
               with your order email and Paddle receipt/order ID. You may also
               contact Paddle customer support for payment-related requests, as

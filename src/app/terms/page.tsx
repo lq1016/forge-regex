@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
+import { localeAlternates } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Forge Regex",
   description: "Terms governing use of the Forge Regex service.",
+  alternates: localeAlternates("/terms", "/cn/terms"),
 };
 
 export default function TermsPage() {
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <header className="px-5 sm:px-6 py-4 max-w-3xl mx-auto w-full">
         <Link
           href="/"
@@ -122,9 +124,9 @@ export default function TermsPage() {
               Support:{" "}
               <a
                 className="text-accent hover:underline"
-                href="mailto:support@forge-regex.dev"
+                href="mailto:coderlau@live.com"
               >
-                support@forge-regex.dev
+                coderlau@live.com
               </a>
             </p>
           </section>

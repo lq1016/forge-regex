@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local data store (sqlite + legacy json)
+/data/
+
+# WeChat / payment merchant certificates (never commit)
+*.p12
+*_cert/
+*_cert.zip
+secrets/
+alipayPublicKey_RSA2.txt

@@ -6,9 +6,14 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:examples": "npx --yes tsx scripts/check-examples.ts",
+    "check:regex-tester": "npx --yes tsx scripts/check-regex-tester.ts",
+    "ih:remind": "node scripts/ih-remind.mjs",
+    "ih:remind:dry": "node scripts/ih-remind.mjs --dry-run"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@stripe/stripe-js": "^9.12.0",
     "jose": "^6.2.4",
     "next": "16.2.10",
@@ -24,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "playwright": "1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
