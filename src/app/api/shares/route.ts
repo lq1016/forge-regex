@@ -11,6 +11,15 @@ function appUrl(): string {
   ).replace(/\/$/, "");
 }
 
+/** Public share path: /r/{id} (EN) or /cn/r/{id} (CN). */
+function sharePath(id: string, edition: "cn" | "global"): string {
+  return edition === "cn" ? `/cn/r/${id}` : `/r/${id}`;
+}
+
+function shareUrl(id: string, edition: "cn" | "global"): string {
+  return `${appUrl()}${sharePath(id, edition)}`;
+}
+
 export async function GET(req: NextRequest) {
   const edition = resolveProEdition(req);
   const session = await getSession();
@@ -20,19 +29,25 @@ export async function GET(req: NextRequest) {
       { status: 401 }
     );
   }
-  if (!(await isPro(edition))) {
+  // List if Pro on this site OR the other edition (CN Pro users often hit /shares by mistake).
+  const proHere = await isPro(edition);
+  const other: "cn" | "global" = edition === "cn" ? "global" : "cn";
+  const proOther = await isPro(other);
+  if (!proHere && !proOther) {
     return NextResponse.json(
       { error: "Pro required.", code: "pro_required" },
       { status: 403 }
     );
   }
+  const linkEdition = proHere ? edition : other;
   const shares = listSharesByEmail(session.email).map((s) => ({
     id: s.id,
     prompt: s.prompt,
     pattern: s.pattern,
     flags: s.flags,
     createdAt: s.createdAt,
-    url: `${appUrl()}/r/${s.id}`,
+    url: shareUrl(s.id, linkEdition),
+    path: sharePath(s.id, linkEdition),
   }));
   return NextResponse.json({ shares });
 }
@@ -90,8 +105,13 @@ export async function POST(req: NextRequest) {
       testText: typeof body?.testText === "string" ? body.testText : "",
     });
 
-    const url = `${appUrl()}/r/${share.id}`;
-    return NextResponse.json({ ok: true, id: share.id, url });
+    const url = shareUrl(share.id, edition);
+    return NextResponse.json({
+      ok: true,
+      id: share.id,
+      url,
+      path: sharePath(share.id, edition),
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Create failed";
     console.error("[api/shares]", message);

@@ -57,6 +57,9 @@ export function ReplacePanel({
       </button>
       {open && (
         <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
+          <p id="replace-hint" className="text-xs leading-relaxed text-muted">
+            {t("replaceHint")}
+          </p>
           <label className="block text-[11px] font-semibold uppercase tracking-wide text-subtle">
             {t("replaceLabel")}
           </label>
@@ -65,7 +68,8 @@ export function ReplacePanel({
             onChange={(e) => setReplacement(e.target.value)}
             className="w-full px-3.5 py-2.5 border border-border rounded-xl text-sm font-mono text-ink bg-surface-raised outline-none focus:border-accent focus:shadow-[0_0_0_3px_var(--color-accent-ring)]"
             spellCheck={false}
-            placeholder="$1"
+            placeholder="$&"
+            aria-describedby="replace-hint"
           />
           <div className="p-3.5 bg-surface-raised rounded-xl text-sm leading-relaxed text-muted font-mono border border-border whitespace-pre-wrap break-words min-h-[3rem]">
             {preview || (

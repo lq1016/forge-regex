@@ -117,7 +117,7 @@ export function ShareButton({
                   {copied ? t("copied") : t("shareCopyLink")}
                 </button>
                 <Link
-                  href="/shares"
+                  href={href("/shares")}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border text-muted hover:text-ink"
                 >
                   {t("myShares")}

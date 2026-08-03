@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Forge Regex — UI mockup (Export / Replace / Share)</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --ink: #1a1d23;
+    --muted: #5c6570;
+    --subtle: #8b939e;
+    --accent: #0d7377;
+    --accent-soft: #e6f4f4;
+    --border: #e2e5ea;
+    --surface: #ffffff;
+    --raised: #fafbfc;
+    --match: #d9f99d;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, #d4ebeb 0%, transparent 55%),
+      linear-gradient(180deg, #f7f8fa 0%, #eef0f3 100%);
+  }
+  .wrap { max-width: 48rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .banner {
+    font-size: 12px; color: var(--muted); margin-bottom: 1.25rem;
+    padding: 0.65rem 0.85rem; background: var(--accent-soft); border-radius: 10px;
+  }
+  .banner strong { color: var(--accent); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(17,19,24,0.04); margin-bottom: 1rem; overflow: hidden;
+    animation: up 0.4s var(--ease) both;
+  }
+  .card.d1 { animation-delay: 0.05s; }
+  .card.d2 { animation-delay: 0.1s; }
+  .card.d3 { animation-delay: 0.15s; }
+  @keyframes up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 1rem 1.25rem 0.75rem; }
+  h2 { margin: 0; font-size: 0.875rem; font-weight: 600; }
+  .badge {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--subtle);
+    border: 1px solid var(--border); background: var(--raised); padding: 0.15rem 0.4rem; border-radius: 4px;
+  }
+  .actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  button {
+    font: inherit; cursor: pointer; border: none; border-radius: 0.5rem;
+    font-size: 12px; font-weight: 600; padding: 0.4rem 0.75rem;
+    transition: transform 0.12s, background 0.15s, color 0.15s;
+  }
+  button:active { transform: scale(0.98); }
+  .btn-accent { background: var(--accent-soft); color: var(--accent); }
+  .btn-accent:hover { background: var(--accent); color: #fff; }
+  .btn-ink { background: var(--ink); color: #fff; }
+  .btn-ink:hover { opacity: 0.9; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .code {
+    margin: 0 1.25rem 1rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 13px; background: var(--ink); color: #e8eaed; border-radius: 0.75rem;
+    padding: 0.9rem 1rem; overflow-x: auto;
+  }
+  .code .slash { color: #5eead4; }
+  .fold-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1.25rem; background: transparent; border-radius: 0; font-size: 0.875rem;
+    font-weight: 500; color: var(--ink); border-top: 1px solid var(--border);
+  }
+  .fold-head:hover { background: var(--raised); }
+  .chev { transition: transform 0.3s var(--ease); color: var(--subtle); }
+  .chev.open { transform: rotate(180deg); }
+  .fold-body { display: none; padding: 0 1.25rem 1.15rem; }
+  .fold-body.open { display: block; animation: fade 0.3s var(--ease); }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  label { display: block; font-size: 11px; font-weight: 600; color: var(--subtle); margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  input, textarea {
+    width: 100%; font: inherit; font-size: 0.875rem; padding: 0.65rem 0.85rem;
+    border: 1px solid var(--border); border-radius: 0.75rem; background: var(--raised); color: var(--ink);
+    outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #0d737733; }
+  textarea { min-height: 5.5rem; resize: vertical; font-family: ui-monospace, monospace; }
+  .preview {
+    margin-top: 0.75rem; padding: 0.85rem; background: var(--raised); border: 1px solid var(--border);
+    border-radius: 0.75rem; font-family: ui-monospace, monospace; font-size: 0.8rem; color: var(--muted); line-height: 1.55;
+  }
+  mark { background: var(--match); border-bottom: 2px solid #65a30d; border-radius: 2px; color: var(--ink); padding: 0 1px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+  .tab {
+    padding: 0.35rem 0.65rem; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--raised); color: var(--muted); border: 1px solid var(--border);
+  }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .toast {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; padding: 0.7rem 1rem;
+    border-radius: 999px; opacity: 0; pointer-events: none; transition: 0.35s var(--ease);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .gate {
+    margin-top: 0.75rem; padding: 0.85rem; border-radius: 0.75rem; background: #fff8e8; border: 1px solid #f5e0a8;
+    font-size: 0.8rem; color: var(--muted); line-height: 1.45;
+  }
+  .gate a { color: var(--accent); font-weight: 600; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="banner"><strong>UI mockup only</strong> — not production. Toggle Free / Pro below to see Share gating.</p>
+
+    <div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center;font-size:13px;color:var(--muted)">
+      Role:
+      <button type="button" class="tab active" id="roleFree" onclick="setRole('free')">Free</button>
+      <button type="button" class="tab" id="rolePro" onclick="setRole('pro')">Pro</button>
+    </div>
+
+    <!-- Regex card -->
+    <section class="card">
+      <div class="row">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <h2>Generated regex</h2>
+          <span class="badge">PCRE</span>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn-accent" onclick="toast('Copied /pattern/flags')">Copy</button>
+          <button type="button" class="btn-ink" id="shareBtn" onclick="onShare()">Share</button>
+        </div>
+      </div>
+      <div class="code"><span class="slash">/</span>[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}<span class="slash">/gi</span></div>
+      <button type="button" class="fold-head" onclick="toggle('explain', this)">
+        How it works
+        <span class="chev" id="chev-explain">▾</span>
+      </button>
+      <div class="fold-body" id="explain">
+        <p style="margin:0;font-size:0.85rem;color:var(--muted)"><code style="color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:4px">[A-Z0-9._%+-]+</code> local part · domain · TLD</p>
+      </div>
+      <div class="fold-body" id="sharePanel" style="border-top:1px solid var(--border);padding-top:1rem">
+        <div id="shareGate" class="gate">
+          Sharing is a Pro feature. <a href="#">Sign in</a> and upgrade to create a public link with prompt, regex, and test text.
+        </div>
+        <div id="shareOk" class="hidden">
+          <label>Public link</label>
+          <div style="display:flex;gap:0.5rem">
+            <input readonly id="shareUrl" value="https://regex.ststudio.top/r/em4k2p" />
+            <button type="button" class="btn-accent" onclick="toast('Link copied')">Copy link</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Test -->
+    <section class="card d1">
+      <div class="row"><h2>Test against your text</h2><span style="font-size:12px;color:var(--accent);font-weight:600">2 matches</span></div>
+      <div style="padding:0 1.25rem 1rem">
+        <textarea readonly>Contact alice@acme.com or bob@example.org for help.</textarea>
+        <div class="preview">Contact <mark>alice@acme.com</mark> or <mark>bob@example.org</mark> for help.</div>
+      </div>
+    </section>
+
+    <!-- Replace -->
+    <section class="card d2">
+      <button type="button" class="fold-head" style="border-top:none" onclick="toggle('replace', this)">
+        Replace
+        <span class="chev open" id="chev-replace">▾</span>
+      </button>
+      <div class="fold-body open" id="replace">
+        <label>Replacement</label>
+        <input id="repl" value="user@$2" oninput="updateRepl()" />
+        <div class="preview" id="replOut">Contact user@acme.com or user@example.org for help.</div>
+        <div style="margin-top:0.75rem"><button type="button" class="btn-accent" onclick="toast('Replaced text copied')">Copy replaced text</button></div>
+      </div>
+    </section>
+
+    <!-- Export -->
+    <section class="card d3">
+      <button type="button" class="fold-head" style="border-top:none" onclick="toggle('export', this)">
+        Export
+        <span class="chev open" id="chev-export">▾</span>
+      </button>
+      <div class="fold-body open" id="export">
+        <div class="tabs" id="langTabs">
+          <button type="button" class="tab active" data-lang="js">JavaScript</button>
+          <button type="button" class="tab" data-lang="py">Python</button>
+          <button type="button" class="tab" data-lang="go">Go</button>
+          <button type="button" class="tab" data-lang="java">Java</button>
+          <button type="button" class="tab" data-lang="net">.NET</button>
+        </div>
+        <div class="code" id="snip" style="margin:0 0 0.75rem">const re = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;</div>
+        <button type="button" class="btn-accent" onclick="toast('Snippet copied')">Copy snippet</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let role = 'free';
+    const snips = {
+      js: 'const re = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi;',
+      py: 'import re\npattern = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", re.I)',
+      go: 're := regexp.MustCompile(`(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}`)',
+      java: 'Pattern.compile("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,}", Pattern.CASE_INSENSITIVE);',
+      net: 'new Regex(@"[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", RegexOptions.IgnoreCase);',
+    };
+
+    function setRole(r) {
+      role = r;
+      document.getElementById('roleFree').classList.toggle('active', r === 'free');
+      document.getElementById('rolePro').classList.toggle('active', r === 'pro');
+      document.getElementById('shareGate').classList.toggle('hidden', r === 'pro');
+      document.getElementById('shareOk').classList.toggle('hidden', r !== 'pro');
+      document.getElementById('sharePanel').classList.remove('open');
+      document.getElementById('sharePanel').style.display = 'none';
+    }
+
+    function onShare() {
+      const panel = document.getElementById('sharePanel');
+      panel.style.display = 'block';
+      panel.classList.add('open');
+      if (role === 'pro') toast('Share link ready');
+    }
+
+    function toggle(id, btn) {
+      const body = document.getElementById(id);
+      const chev = document.getElementById('chev-' + id);
+      const open = !body.classList.contains('open');
+      body.classList.toggle('open', open);
+      if (chev) chev.classList.toggle('open', open);
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(window.__t);
+      window.__t = setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    function updateRepl() {
+      const v = document.getElementById('repl').value || '$&';
+      document.getElementById('replOut').innerHTML =
+        'Contact <mark>' + v.replace('$2','acme.com').replace('user@','user@') + '</mark> or <mark>' +
+        v.replace('$2','example.org') + '</mark> for help.';
+    }
+
+    document.getElementById('langTabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lang]');
+      if (!b) return;
+      document.querySelectorAll('#langTabs .tab').forEach(t => t.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('snip').textContent = snips[b.dataset.lang];
+    });
+
+    setRole('free');
+    document.getElementById('sharePanel').style.display = 'none';
+  </script>
+</body>
+</html>

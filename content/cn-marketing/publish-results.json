@@ -1,0 +1,56 @@
+[
+  {
+    "ok": true,
+    "platform": "zhihu",
+    "url": "https://zhuanlan.zhihu.com/p/2066835780845171446",
+    "title": "写爬虫时我懒得再手搓正则了",
+    "state": "published",
+    "images": 5,
+    "note": "2026-08-01 humanizer-zh 更新正文+图"
+  },
+  {
+    "ok": true,
+    "platform": "juejin",
+    "url": "https://juejin.cn/post/7668658871550459942",
+    "title": "写爬虫时我懒得再手搓正则了",
+    "article_id": "7668658871550459942",
+    "images": 4,
+    "note": "去推广版；图片改用 ServiceId k3u1fbpfcp（公开可访问）；旧 73owjymdk6 会 403；审核中"
+  },
+  {
+    "ok": true,
+    "platform": "xiaohongshu",
+    "note_id": "6a6d684e000000002701ebca",
+    "title": "爬虫写正则别再来回粘了",
+    "images": 5,
+    "note": "2026-08-01 humanizer-zh 新帖"
+  },
+  {
+    "ok": true,
+    "platform": "toutiao",
+    "url": "https://www.toutiao.com/item/7668887733988770354/",
+    "title": "中文出正则+同页测试：爬虫别再手搓了",
+    "status": 3,
+    "note": "未做人话重发"
+  },
+  {
+    "ok": false,
+    "platform": "csdn",
+    "error": "本机无 CSDN 登录 Cookie"
+  },
+  {
+    "ok": false,
+    "platform": "cnblogs",
+    "error": "本机无博客园登录 Cookie"
+  },
+  {
+    "ok": false,
+    "platform": "v2ex",
+    "error": "本机无 V2EX 登录 Cookie"
+  },
+  {
+    "ok": false,
+    "platform": "segmentfault",
+    "error": "本机无思否登录 Cookie"
+  }
+]

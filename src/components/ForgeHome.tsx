@@ -11,12 +11,21 @@ import { FlagEditor } from "@/components/FlagEditor";
 import { PatternEditor } from "@/components/PatternEditor";
 import { CaptureGroupsTable } from "@/components/CaptureGroupsTable";
 import { RedosWarning } from "@/components/RedosWarning";
+import { RefineBar } from "@/components/RefineBar";
+import { RecentHistory } from "@/components/RecentHistory";
 import { LocaleProvider, useLocale } from "@/components/LocaleProvider";
 import type { Locale } from "@/lib/i18n";
 import { buildHighlightParts } from "@/lib/regex-highlight";
 import { analyzeRedosRisk } from "@/lib/regex-redos";
 import { normalizeFlags } from "@/lib/regex-flags";
 import { getDeviceFingerprint } from "@/lib/device-fp";
+import {
+  loadLocalHistory,
+  pushLocalHistory,
+  saveLocalHistory,
+  type HistoryItem,
+} from "@/lib/local-history";
+import type { RefineMode } from "@/lib/refine";
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -318,8 +327,14 @@ function ForgeHomeInner() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [shortcutLabel, setShortcutLabel] = useState("Ctrl");
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historySyncing, setHistorySyncing] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setHistory(loadLocalHistory());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -426,10 +441,11 @@ function ForgeHomeInner() {
   }, []);
 
   const generateRegex = useCallback(
-    async (overridePrompt?: string) => {
+    async (overridePrompt?: string, refine?: RefineMode) => {
       const text = (overridePrompt ?? prompt).trim();
-      if (!text) return;
-      if (overridePrompt === undefined) setActiveLabel(null);
+      if (!refine && !text) return;
+      if (refine && !result) return;
+      if (overridePrompt === undefined && !refine) setActiveLabel(null);
 
       if (usage?.needsAuth) {
         window.dispatchEvent(new Event("forge:open-auth"));
@@ -449,7 +465,20 @@ function ForgeHomeInner() {
             ...editionHeaders(),
             ...(fp ? { "X-Forge-Fp": fp } : {}),
           },
-          body: JSON.stringify({ prompt: text, locale, fp: fp || undefined }),
+          body: JSON.stringify({
+            prompt: text || prompt,
+            locale,
+            fp: fp || undefined,
+            ...(refine && result
+              ? {
+                  refine: {
+                    mode: refine,
+                    pattern: result.pattern,
+                    flags: result.flags,
+                  },
+                }
+              : {}),
+          }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -472,17 +501,33 @@ function ForgeHomeInner() {
           }
           return;
         }
-        setResult({
+        const nextResult = {
           ...data,
           flags: normalizeFlags(data.flags || ""),
-        });
+        };
+        setResult(nextResult);
         setPatternDirty(false);
         setHasGenerated(true);
+        const nextTest =
+          typeof data.sample === "string" && data.sample.trim()
+            ? data.sample.trim()
+            : testText || defaultTest;
         if (typeof data.sample === "string" && data.sample.trim()) {
           setTestText(data.sample.trim());
-        } else {
+        } else if (!refine) {
           setTestText(defaultTest);
         }
+        setHistory(
+          pushLocalHistory({
+            prompt: text || prompt,
+            pattern: nextResult.pattern,
+            flags: nextResult.flags,
+            testText: nextTest,
+            explanation: Array.isArray(nextResult.explanation)
+              ? nextResult.explanation
+              : [],
+          })
+        );
         if (data.remaining !== undefined) {
           setUsage((prev) =>
             prev
@@ -507,7 +552,7 @@ function ForgeHomeInner() {
         setLoading(false);
       }
     },
-    [prompt, locale, defaultTest, usage, t]
+    [prompt, locale, defaultTest, usage, t, editionHeaders, result, testText]
   );
 
   const fillExample = useCallback((ex: Example) => {
@@ -524,6 +569,15 @@ function ForgeHomeInner() {
     setPatternDirty(false);
     setHasGenerated(true);
     setActiveLabel(ex.label);
+    setHistory(
+      pushLocalHistory({
+        prompt: ex.label,
+        pattern: ex.result.pattern,
+        flags: normalizeFlags(ex.result.flags || ""),
+        testText: ex.sample,
+        explanation: ex.result.explanation,
+      })
+    );
     requestAnimationFrame(() => {
       resultRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -531,6 +585,88 @@ function ForgeHomeInner() {
       });
     });
   }, []);
+
+  const restoreHistory = useCallback(
+    (item: HistoryItem) => {
+      setPrompt(item.prompt || "");
+      setResult({
+        pattern: item.pattern,
+        flags: normalizeFlags(item.flags || ""),
+        explanation: Array.isArray(item.explanation) ? item.explanation : [],
+      });
+      setPatternDirty(false);
+      setTestText(item.testText || defaultTest);
+      setHasGenerated(true);
+      setExplainOpen(false);
+      setActiveLabel(null);
+      setError(null);
+      requestAnimationFrame(() => {
+        resultRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    },
+    [defaultTest]
+  );
+
+  const syncHistory = useCallback(async () => {
+    if (!usage?.isPro) return;
+    setHistorySyncing(true);
+    setError(null);
+    try {
+      const local = loadLocalHistory();
+      const res = await fetch("/api/history", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...editionHeaders(),
+        },
+        body: JSON.stringify({
+          items: local.map((h) => ({
+            prompt: h.prompt,
+            pattern: h.pattern,
+            flags: h.flags,
+            testText: h.testText,
+            explanation: h.explanation,
+            savedAt: h.savedAt,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || t("historySyncFailed"));
+        return;
+      }
+      if (Array.isArray(data.items)) {
+        const mapped: HistoryItem[] = data.items.map(
+          (h: {
+            id: string;
+            prompt: string;
+            pattern: string;
+            flags: string;
+            testText: string;
+            explanation: HistoryItem["explanation"];
+            savedAt: string;
+          }) => ({
+            id: h.id,
+            prompt: h.prompt || "",
+            pattern: h.pattern,
+            flags: h.flags || "",
+            testText: h.testText || "",
+            explanation: Array.isArray(h.explanation) ? h.explanation : [],
+            savedAt: h.savedAt || new Date().toISOString(),
+          })
+        );
+        saveLocalHistory(mapped);
+        setHistory(mapped);
+      }
+    } catch {
+      setError(t("historySyncFailed"));
+    } finally {
+      setHistorySyncing(false);
+    }
+  }, [editionHeaders, t, usage?.isPro]);
 
   const copyRegex = useCallback(async () => {
     if (!result) return;
@@ -651,6 +787,14 @@ function ForgeHomeInner() {
           )}
         </header>
 
+        <RecentHistory
+          items={history}
+          isPro={isPro}
+          syncing={historySyncing}
+          onRestore={restoreHistory}
+          onSync={() => void syncHistory()}
+        />
+
         {/* Primary action — the only heavyweight CTA */}
         <section
           className={`animate-enter-delay-2 ${
@@ -745,6 +889,10 @@ function ForgeHomeInner() {
               </Link>
             )}
           </div>
+        )}
+
+        {!isPro && (
+          <p className="mb-4 text-[11px] text-subtle">{t("failedQuotaHint")}</p>
         )}
 
         {/* Loading skeleton where results land */}
@@ -852,6 +1000,10 @@ function ForgeHomeInner() {
                     prev ? { ...prev, flags: next } : prev
                   )
                 }
+              />
+              <RefineBar
+                disabled={loading}
+                onRefine={(mode) => void generateRegex(undefined, mode)}
               />
 
               {/* Explanation — collapsed by default (gradual revelation) */}
