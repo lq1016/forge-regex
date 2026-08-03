@@ -49,6 +49,37 @@ const EXAMPLES: { label: string; sample: string; result: RegexResult }[] = [
     },
   },
   {
+    label: "身份证号",
+    sample:
+      "证件：11010119900307891X、44030119851212001X。无效：123456、1101011990030789123。",
+    result: {
+      pattern:
+        "(?<!\\d)[1-9]\\d{5}(?:19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx](?!\\d)",
+      flags: "g",
+      explanation: [
+        { token: "[1-9]\\d{5}", description: "地区码 6 位（首位非 0）" },
+        { token: "(?:19|20)\\d{2}", description: "出生年 1900–2099" },
+        {
+          token: "(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])",
+          description: "出生月日",
+        },
+        { token: "\\d{3}[\\dXx]", description: "顺序码 3 位 + 校验位" },
+      ],
+    },
+  },
+  {
+    label: "中文姓名",
+    sample: "【张三】【欧阳娜娜】【皇甫清】｜skip【李】【John】",
+    result: {
+      pattern: "[\\u4e00-\\u9fa5]{2,4}",
+      flags: "g",
+      explanation: [
+        { token: "[\\u4e00-\\u9fa5]", description: "常用汉字 Unicode 范围" },
+        { token: "{2,4}", description: "通常 2–4 个字（含复姓）" },
+      ],
+    },
+  },
+  {
     label: "邮箱地址",
     sample: "发到 zhang@qq.com 或 hello.dev@company.cn。跳过 not-an-email。",
     result: {
@@ -65,18 +96,15 @@ const EXAMPLES: { label: string; sample: string; result: RegexResult }[] = [
     },
   },
   {
-    label: "提取 href",
-    sample:
-      '<a href="https://example.com/a">A</a> <a href=\'/rel\'>B</a> <span>href=notquoted</span>',
+    label: "车牌号",
+    sample: "车辆：京A12345、沪C88888、浙A1B2C3。无效：京12345、京A12。",
     result: {
-      pattern: "(?<=href\\s*=\\s*['\"])[^'\"]+",
+      pattern: "[\\u4e00-\\u9fa5][A-HJ-NP-Z][A-HJ-NP-Z0-9]{5}",
       flags: "gi",
       explanation: [
-        {
-          token: "(?<=href\\s*=\\s*['\"])",
-          description: "紧跟在 href= 引号后（不占匹配）",
-        },
-        { token: "[^'\"]+", description: "整段匹配即为 URL 值" },
+        { token: "[\\u4e00-\\u9fa5]", description: "省份简称汉字" },
+        { token: "[A-HJ-NP-Z]", description: "发牌机关字母（不含 I/O）" },
+        { token: "[A-HJ-NP-Z0-9]{5}", description: "号牌序号 5 位" },
       ],
     },
   },
@@ -101,9 +129,12 @@ export function App() {
   const [patternDirty, setPatternDirty] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [copied, setCopied] = useState(false);
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [shortcutLabel, setShortcutLabel] = useState("Ctrl");
 
   useEffect(() => {
     setHistory(loadLocalHistory());
+    if (/Mac|iPhone|iPad/.test(navigator.platform)) setShortcutLabel("⌘");
     void (async () => {
       try {
         const me = await fetchMe();
@@ -138,14 +169,15 @@ export function App() {
 
   const remember = useCallback(
     (next: RegexResult, nextPrompt: string, nextTest: string) => {
-      const items = pushLocalHistory({
-        prompt: nextPrompt,
-        pattern: next.pattern,
-        flags: next.flags,
-        testText: nextTest,
-        explanation: next.explanation,
-      });
-      setHistory(items);
+      setHistory(
+        pushLocalHistory({
+          prompt: nextPrompt,
+          pattern: next.pattern,
+          flags: next.flags,
+          testText: nextTest,
+          explanation: next.explanation,
+        })
+      );
     },
     []
   );
@@ -161,6 +193,7 @@ export function App() {
 
       setLoading(true);
       setError(null);
+      if (!refine) setActiveLabel(null);
       try {
         const fp = getCnFingerprint();
         const body: Record<string, unknown> = {
@@ -245,6 +278,7 @@ export function App() {
     setTestText(ex.sample);
     setPatternDirty(false);
     setError(null);
+    setActiveLabel(ex.label);
     remember(ex.result, ex.label, ex.sample);
   };
 
@@ -257,6 +291,7 @@ export function App() {
     });
     setTestText(item.testText || DEFAULT_TEST);
     setPatternDirty(false);
+    setActiveLabel(null);
   };
 
   const copyPattern = async () => {
@@ -266,55 +301,78 @@ export function App() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const quotaLabel = (() => {
-    if (hasPro || usage?.isPro) return "Pro · 无限生成";
-    if (!usage) return "";
-    if (usage.needsAuth) return "试用已用完 · 请登录";
-    if (usage.remaining < 0) return "Pro · 无限生成";
-    if (usage.isGuest || !authenticated) {
-      return `试用剩余 ${usage.remaining} 次`;
-    }
-    return `今日剩余 ${usage.remaining}/${usage.limit}`;
-  })();
+  const isPro = hasPro || Boolean(usage?.isPro);
+  const quotaLow =
+    !isPro && usage != null && usage.remaining >= 0 && usage.remaining <= 1;
+  const hasGenerated = Boolean(result);
 
   return (
     <div className="forge-cn">
-      <header className="forge-cn__header">
-        <div>
-          <h1 className="forge-cn__title">Forge Regex</h1>
-          <p className="forge-cn__sub">用中文描述规则，得到可用正则</p>
+      <div className="forge-cn__topbar forge-cn__enter">
+        <div className="forge-cn__brand" aria-label="Forge Regex">
+          <span className="forge-cn__mark" aria-hidden>
+            /
+          </span>
+          <span className="forge-cn__brand-name">Forge Regex</span>
         </div>
-        <div className="forge-cn__meta">
-          {quotaLabel ? <span className="forge-cn__quota">{quotaLabel}</span> : null}
+        <div className="forge-cn__nav">
+          {usage && !usage.needsAuth ? (
+            <span
+              className={`forge-cn__quota${
+                isPro ? " forge-cn__quota--pro" : quotaLow ? " forge-cn__quota--low" : ""
+              }`}
+            >
+              <span className="forge-cn__quota-dot" />
+              {isPro
+                ? "Pro"
+                : usage.isGuest || !authenticated
+                  ? `试用剩余 ${usage.remaining} 次`
+                  : `今日剩余 ${usage.remaining} 次`}
+            </span>
+          ) : null}
           {!authenticated ? (
             <a className="forge-cn__link" href={boot.loginUrl}>
               登录
             </a>
-          ) : !hasPro ? (
-            <a className="forge-cn__link" href={boot.pricingUrl}>
-              开通 Pro
+          ) : null}
+          <a className="forge-cn__link" href={boot.pricingUrl}>
+            定价
+          </a>
+          {!isPro ? (
+            <a className="forge-cn__btn-ink" href={boot.pricingUrl}>
+              升级
             </a>
           ) : (
-            <span className="forge-cn__badge">已开通 Pro</span>
+            <span className="forge-cn__quota forge-cn__quota--pro">已开通 Pro</span>
           )}
         </div>
-      </header>
-
-      <div className="forge-cn__examples">
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex.label}
-            type="button"
-            className="forge-cn__chip"
-            onClick={() => applyExample(ex)}
-          >
-            {ex.label}
-          </button>
-        ))}
       </div>
 
+      <header
+        className={`forge-cn__hero forge-cn__enter-2${
+          hasGenerated ? " forge-cn__hero--compact" : ""
+        }`}
+      >
+        <h1 className="forge-cn__title">
+          {hasGenerated ? (
+            "正则已生成"
+          ) : (
+            <>
+              用中文描述规则。
+              <br />
+              得到正则表达式。
+            </>
+          )}
+        </h1>
+        {!hasGenerated ? (
+          <p className="forge-cn__sub">
+            别再死磕正则语法。说出你要匹配什么——我们帮你锻造可用表达式。
+          </p>
+        ) : null}
+      </header>
+
       {history.length > 0 ? (
-        <section className="forge-cn__history">
+        <section className="forge-cn__history forge-cn__enter-2">
           <h2>最近</h2>
           <ul>
             {history.slice(0, 8).map((item) => (
@@ -328,45 +386,74 @@ export function App() {
         </section>
       ) : null}
 
-      <label className="forge-cn__label" htmlFor="forge-prompt">
-        描述你想匹配的内容
-      </label>
-      <textarea
-        id="forge-prompt"
-        className="forge-cn__textarea"
-        rows={3}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="例如：提取 HTML 里 a 标签的 href 值"
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-            e.preventDefault();
-            void generate();
-          }
-        }}
-      />
-      <div className="forge-cn__actions">
-        <button
-          type="button"
-          className="forge-cn__btn"
-          disabled={loading}
-          onClick={() => void generate()}
-        >
-          {loading ? "生成中…" : "生成正则"}
-        </button>
-        <span className="forge-cn__hint">⌘/Ctrl + Enter</span>
+      <div className="forge-cn__prompt-wrap forge-cn__enter-2">
+        <label className="sr-only" htmlFor="forge-prompt" style={{ display: "none" }}>
+          描述你想匹配的内容
+        </label>
+        <textarea
+          id="forge-prompt"
+          className="forge-cn__prompt"
+          rows={4}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="例如：匹配邮箱、手机号…"
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              void generate();
+            }
+          }}
+        />
+        <div className="forge-cn__prompt-bar">
+          <span className="forge-cn__kbd">
+            {shortcutLabel}
+            <span style={{ opacity: 0.6 }}>↵</span>
+          </span>
+          <button
+            type="button"
+            className="forge-cn__btn-gen"
+            disabled={loading || !prompt.trim()}
+            onClick={() => void generate()}
+          >
+            {loading ? "生成中…" : "生成"}
+          </button>
+        </div>
       </div>
 
-      {error ? <p className="forge-cn__error">{error}</p> : null}
+      <p className="forge-cn__examples-label forge-cn__enter-3">示例</p>
+      <div className="forge-cn__examples forge-cn__enter-3">
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex.label}
+            type="button"
+            className={`forge-cn__chip${
+              activeLabel === ex.label ? " forge-cn__chip--on" : ""
+            }`}
+            onClick={() => applyExample(ex)}
+          >
+            {ex.label}
+          </button>
+        ))}
+      </div>
+
+      {error || usage?.needsAuth ? (
+        <p className="forge-cn__error" role="alert">
+          {error || "试用次数已用完，请登录后继续。"}
+        </p>
+      ) : null}
       {usage?.needsAuth ? (
         <p className="forge-cn__gate">
           <a href={boot.loginUrl}>登录 SilentTrace 账号</a>
           后每天可免费生成 8 次；或 <a href={boot.pricingUrl}>开通 Pro</a>。
         </p>
       ) : null}
+      {!isPro ? (
+        <p className="forge-cn__hint">生成失败不扣次数。</p>
+      ) : null}
 
       {result ? (
-        <section className="forge-cn__result">
+        <section className="forge-cn__result forge-cn__enter">
+          <div className="forge-cn__result-head">生成的正则</div>
           <div className="forge-cn__pattern-wrap">
             <span className="forge-cn__slash">/</span>
             <textarea
@@ -390,7 +477,7 @@ export function App() {
           ) : null}
 
           <div className="forge-cn__flags">
-            <span>标志</span>
+            <span>标志位</span>
             {FLAG_CHIPS.map((flag) => {
               const on = hasFlag(flags, flag);
               return (
@@ -431,7 +518,9 @@ export function App() {
                 {p.label}
               </button>
             ))}
-            <p className="forge-cn__hint">改写会计入生成次数；失败不扣次。</p>
+            <p className="forge-cn__hint" style={{ margin: 0, width: "100%" }}>
+              每次改写消耗 1 次生成额度（失败不扣次）。
+            </p>
           </div>
 
           {redos?.risk ? (
@@ -451,30 +540,40 @@ export function App() {
             </ul>
           ) : null}
 
-          <label className="forge-cn__label" htmlFor="forge-test">
-            测试文本
-          </label>
-          <textarea
-            id="forge-test"
-            className="forge-cn__textarea"
-            rows={5}
-            value={testText}
-            onChange={(e) => setTestText(e.target.value)}
-          />
-          <div className="forge-cn__hl" aria-live="polite">
-            {highlight.length === 0 ? (
-              <span className="forge-cn__muted">暂无匹配</span>
-            ) : (
-              highlight.map((part, i) =>
-                part.match ? (
-                  <mark key={i}>{part.text}</mark>
-                ) : (
-                  <span key={i}>{part.text}</span>
+          <div className="forge-cn__test-block">
+            <label className="forge-cn__label" htmlFor="forge-test">
+              用文本测试
+            </label>
+            <textarea
+              id="forge-test"
+              className="forge-cn__textarea"
+              rows={5}
+              value={testText}
+              onChange={(e) => setTestText(e.target.value)}
+            />
+            <div className="forge-cn__hl" aria-live="polite">
+              {highlight.length === 0 ? (
+                <span className="forge-cn__muted">暂无匹配</span>
+              ) : (
+                highlight.map((part, i) =>
+                  part.match ? (
+                    <mark key={i}>{part.text}</mark>
+                  ) : (
+                    <span key={i}>{part.text}</span>
+                  )
                 )
-              )
-            )}
+              )}
+            </div>
           </div>
         </section>
+      ) : !loading ? (
+        <div className="forge-cn__empty forge-cn__enter-3">
+          <div className="forge-cn__empty-mark">.*</div>
+          <p>在上方输入描述，或点选示例，看看 Forge 怎么工作。</p>
+          <p style={{ color: "var(--forge-accent)", marginTop: "0.35rem" }}>
+            ↑ 从「生成」开始
+          </p>
+        </div>
       ) : null}
     </div>
   );
