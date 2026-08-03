@@ -9,8 +9,12 @@
     "lint": "eslint",
     "check:examples": "npx --yes tsx scripts/check-examples.ts",
     "check:regex-tester": "npx --yes tsx scripts/check-regex-tester.ts",
+    "check:regex-valid": "npx --yes tsx scripts/check-regex-valid.ts",
     "ih:remind": "node scripts/ih-remind.mjs",
-    "ih:remind:dry": "node scripts/ih-remind.mjs --dry-run"
+    "ih:remind:dry": "node scripts/ih-remind.mjs --dry-run",
+    "ih:login": "node scripts/ih-login.mjs",
+    "ih:comment": "node scripts/ih-daily-comment.mjs",
+    "ih:comment:dry": "node scripts/ih-daily-comment.mjs --dry-run"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
