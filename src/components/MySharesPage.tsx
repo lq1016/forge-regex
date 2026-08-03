@@ -107,10 +107,10 @@ function MySharesInner() {
               </div>
               <div className="flex gap-2 shrink-0">
                 <Link
-                  href={`/r/${s.id}`}
+                  href={href(`/r/${s.id}`)}
                   className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-accent-soft text-accent"
                 >
-                  {t("shareOpenInForge")}
+                  {t("sharePageTitle")}
                 </Link>
                 <button
                   type="button"

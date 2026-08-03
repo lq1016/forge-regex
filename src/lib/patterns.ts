@@ -430,6 +430,93 @@ export const PATTERNS: PatternPage[] = [
       },
     ],
   },
+  {
+    slug: "meta-description",
+    en: {
+      title: "Meta Description Regex — Extract from HTML | Forge Regex",
+      description:
+        "Regex to pull meta name=description content from HTML. Test live and refine in Forge.",
+      h1: "HTML meta description regex",
+      prompt: "extract meta description content from HTML",
+      body: [
+        "Useful when scraping SEO snippets from listing pages. Prefer matching the content value only.",
+        "Open Forge to tighten quote styles or swap to og:description variants.",
+      ],
+      sample: `<meta name="description" content="Ship regex faster." />
+<meta name='description' content='Alternate quotes work too.' />
+<meta name="viewport" content="width=device-width" />`,
+    },
+    zh: {
+      title: "提取 meta description 正则 | Forge Regex",
+      description: "从 HTML 抽取 meta description 的 content 值，可在 Forge 在线测试与改写。",
+      h1: "meta description 提取正则",
+      prompt: "从 HTML 提取 meta description 的 content",
+      body: [
+        "适合列表页/详情页抓 SEO 摘要。优先让整段匹配就是 content 值。",
+        "可在 Forge 里收紧引号写法，或改成 og:description。",
+      ],
+      sample: `<meta name="description" content="更快写出可用正则。" />
+<meta name='description' content='单引号也可。' />
+<meta name="viewport" content="width=device-width" />`,
+    },
+    pattern: "(?<=name\\s*=\\s*['\"]description['\"][^>]*content\\s*=\\s*['\"])[^'\"]+",
+    flags: "i",
+    explanation: [
+      {
+        token: "(?<=name\\s*=\\s*['\"]description['\"][^>]*content\\s*=\\s*['\"])",
+        descriptionEn: "After description meta's content quote",
+        descriptionZh: "紧跟 description 的 content 引号后",
+      },
+      {
+        token: "[^'\"]+",
+        descriptionEn: "Full match is the description text",
+        descriptionZh: "整段匹配即为描述文案",
+      },
+    ],
+  },
+  {
+    slug: "next-page",
+    slugZh: "next-page",
+    en: {
+      title: "Next Page Link Regex — Crawl Pagination | Forge Regex",
+      description:
+        "Match pagination next links (rel=next or common next text) for crawlers.",
+      h1: "Next-page / pagination link regex",
+      prompt: "extract next page href from HTML pagination",
+      body: [
+        "Crawlers often need the next list URL. This starting point looks for rel=next; refine in Forge for site-specific copy like 「下一页」.",
+      ],
+      sample: `<link rel="next" href="/page/2" />
+<a rel='next' href='/items?page=3'>Next</a>
+<a href="/page/2">Skip me</a>`,
+    },
+    zh: {
+      title: "下一页链接正则 — 爬虫翻页 | Forge Regex",
+      description: "匹配分页下一页链接（rel=next 等），可在 Forge 按站点文案改写。",
+      h1: "下一页 / 翻页链接正则",
+      prompt: "从 HTML 分页里提取下一页的 href",
+      body: [
+        "列表爬虫常要下一页 URL。起点优先 rel=next；站点写「下一页」时可在 Forge 一键改写。",
+      ],
+      sample: `<link rel="next" href="/page/2" />
+<a rel='next' href='/items?page=3'>下一页</a>
+<a href="/page/2">普通链接</a>`,
+    },
+    pattern: "(?<=rel\\s*=\\s*['\"]next['\"][^>]*href\\s*=\\s*['\"])[^'\"]+",
+    flags: "i",
+    explanation: [
+      {
+        token: "(?<=rel\\s*=\\s*['\"]next['\"][^>]*href\\s*=\\s*['\"])",
+        descriptionEn: "After rel=next … href quote",
+        descriptionZh: "紧跟 rel=next 的 href 引号后",
+      },
+      {
+        token: "[^'\"]+",
+        descriptionEn: "Full match is the next URL",
+        descriptionZh: "整段匹配即为下一页 URL",
+      },
+    ],
+  },
 ];
 
 export function patternPath(p: PatternPage, locale: PatternLocale): string {

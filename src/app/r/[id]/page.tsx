@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LocaleProvider } from "@/components/LocaleProvider";
 import { ShareView } from "./ShareView";
 
 export const metadata: Metadata = {
@@ -12,5 +13,9 @@ export default async function SharePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ShareView id={id} />;
+  return (
+    <LocaleProvider locale="en" basePath="">
+      <ShareView id={id} />
+    </LocaleProvider>
+  );
 }
