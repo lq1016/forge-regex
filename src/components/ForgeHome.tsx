@@ -8,6 +8,7 @@ import { ReplacePanel } from "@/components/ReplacePanel";
 import { ExportPanel } from "@/components/ExportPanel";
 import { ShareButton } from "@/components/ShareButton";
 import { FlagEditor } from "@/components/FlagEditor";
+import { PatternEditor } from "@/components/PatternEditor";
 import { CaptureGroupsTable } from "@/components/CaptureGroupsTable";
 import { RedosWarning } from "@/components/RedosWarning";
 import { LocaleProvider, useLocale } from "@/components/LocaleProvider";
@@ -313,6 +314,7 @@ function ForgeHomeInner() {
   const [copied, setCopied] = useState(false);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [patternDirty, setPatternDirty] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [shortcutLabel, setShortcutLabel] = useState("Ctrl");
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
@@ -370,6 +372,7 @@ function ForgeHomeInner() {
               ),
               explanation: Array.isArray(sd.explanation) ? sd.explanation : [],
             });
+            setPatternDirty(false);
             setTestText(
               typeof sd.testText === "string" && sd.testText
                 ? sd.testText
@@ -473,6 +476,7 @@ function ForgeHomeInner() {
           ...data,
           flags: normalizeFlags(data.flags || ""),
         });
+        setPatternDirty(false);
         setHasGenerated(true);
         if (typeof data.sample === "string" && data.sample.trim()) {
           setTestText(data.sample.trim());
@@ -517,6 +521,7 @@ function ForgeHomeInner() {
       ...ex.result,
       flags: normalizeFlags(ex.result.flags || ""),
     });
+    setPatternDirty(false);
     setHasGenerated(true);
     setActiveLabel(ex.label);
     requestAnimationFrame(() => {
@@ -821,11 +826,21 @@ function ForgeHomeInner() {
                 </div>
               </div>
 
-              <div className="mx-5 mb-4 font-mono text-[13px] sm:text-sm leading-relaxed bg-ink text-[#e8eaed] rounded-xl px-4 py-3.5 overflow-x-auto selection:bg-accent/40">
-                <span className="text-teal-300">/</span>
-                <span className="text-[#f4f5f7]">{result.pattern}</span>
-                <span className="text-teal-300">/{result.flags}</span>
-              </div>
+              <PatternEditor
+                pattern={result.pattern}
+                flags={result.flags}
+                onChange={(next) => {
+                  setPatternDirty(true);
+                  setResult((prev) =>
+                    prev ? { ...prev, pattern: next } : prev
+                  );
+                }}
+              />
+              {patternDirty ? (
+                <p className="mx-5 mb-3 text-xs text-subtle">
+                  {t("explanationStale")}
+                </p>
+              ) : null}
 
               {redos?.risk && redos.code ? (
                 <RedosWarning code={redos.code} />
