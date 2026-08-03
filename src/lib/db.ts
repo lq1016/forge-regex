@@ -73,6 +73,13 @@ function ensureSchema(database: DatabaseSync): void {
       PRIMARY KEY (email, day)
     );
 
+    CREATE TABLE IF NOT EXISTS cn_user_usage (
+      user_key TEXT NOT NULL,
+      day TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_key, day)
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       email TEXT PRIMARY KEY NOT NULL,
       password_hash TEXT NOT NULL,
@@ -94,6 +101,20 @@ function ensureSchema(database: DatabaseSync): void {
 
     CREATE INDEX IF NOT EXISTS idx_auth_codes_email_purpose
       ON auth_codes(email, purpose);
+
+    CREATE TABLE IF NOT EXISTS user_history (
+      id TEXT PRIMARY KEY NOT NULL,
+      email TEXT NOT NULL,
+      prompt TEXT NOT NULL DEFAULT '',
+      pattern TEXT NOT NULL,
+      flags TEXT NOT NULL DEFAULT '',
+      test_text TEXT NOT NULL DEFAULT '',
+      explanation_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_history_email_created
+      ON user_history(email, created_at DESC);
   `);
 
   ensureCnOrdersSchema(database);

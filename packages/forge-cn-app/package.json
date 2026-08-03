@@ -1,0 +1,23 @@
+{
+  "name": "@forge-regex/cn-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node ./scripts/copy-to-ststudio.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@forge-regex/core": "workspace:*",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5",
+    "vite": "^6.3.5"
+  }
+}

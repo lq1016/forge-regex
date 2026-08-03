@@ -1,0 +1,298 @@
+.forge-cn {
+  color: #0b1220;
+  font-family: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.forge-cn__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.forge-cn__title {
+  font-size: 1.75rem;
+  letter-spacing: -0.03em;
+  margin: 0;
+  font-weight: 700;
+}
+
+.forge-cn__sub {
+  margin: 0.25rem 0 0;
+  color: #3d4a5c;
+  font-size: 0.95rem;
+}
+
+.forge-cn__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.forge-cn__quota,
+.forge-cn__badge {
+  font-size: 0.8rem;
+  color: #3d4a5c;
+  background: #f1f5f9;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+}
+
+.forge-cn__link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0369a1;
+  text-decoration: none;
+}
+
+.forge-cn__link:hover {
+  text-decoration: underline;
+}
+
+.forge-cn__examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.forge-cn__chip {
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.forge-cn__chip:hover {
+  border-color: #0369a1;
+  color: #0369a1;
+}
+
+.forge-cn__history {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  border-radius: 0.85rem;
+  background: #fff;
+}
+
+.forge-cn__history h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.forge-cn__history ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.forge-cn__history button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.9rem;
+  color: #334155;
+  cursor: pointer;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forge-cn__history button:hover {
+  background: #f8fafc;
+  color: #0b1220;
+}
+
+.forge-cn__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.35rem;
+}
+
+.forge-cn__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  resize: vertical;
+  background: #fff;
+}
+
+.forge-cn__textarea:focus {
+  outline: 2px solid rgba(3, 105, 161, 0.25);
+  border-color: #0369a1;
+}
+
+.forge-cn__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.forge-cn__btn {
+  border: 0;
+  background: #0b1220;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1.1rem;
+  cursor: pointer;
+}
+
+.forge-cn__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.forge-cn__hint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.forge-cn__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin: 0.75rem 0 0;
+}
+
+.forge-cn__gate {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.forge-cn__result {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+}
+
+.forge-cn__pattern-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.15rem;
+  background: #0b1220;
+  color: #e8eaed;
+  border-radius: 0.85rem;
+  padding: 0.85rem 1rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+
+.forge-cn__slash {
+  color: #5eead4;
+  user-select: none;
+}
+
+.forge-cn__pattern {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #f4f5f7;
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.forge-cn__flags,
+.forge-cn__refine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.forge-cn__flags button,
+.forge-cn__refine button {
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: #fff;
+  border-radius: 0.45rem;
+  padding: 0.25rem 0.55rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.forge-cn__flags button.on {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: rgba(3, 105, 161, 0.35);
+}
+
+.forge-cn__copy {
+  margin-left: auto;
+  font-family: inherit !important;
+}
+
+.forge-cn__warn {
+  color: #b45309;
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+.forge-cn__explain {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.forge-cn__explain li {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.forge-cn__explain code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: #0f766e;
+}
+
+.forge-cn__hl {
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  min-height: 3rem;
+}
+
+.forge-cn__hl mark {
+  background: #fde68a;
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 0.15rem;
+}
+
+.forge-cn__muted {
+  color: #94a3b8;
+}
