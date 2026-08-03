@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { normalizeFlags, toggleFlag, hasFlag } from "../src/lib/regex-flags";
-import { buildMatchRows, maxGroupCount } from "../src/lib/regex-matches";
-import { analyzeRedosRisk } from "../src/lib/regex-redos";
+import { normalizeFlags, toggleFlag, hasFlag } from "../packages/forge-core/src/regex-flags";
+import { buildMatchRows, maxGroupCount } from "../packages/forge-core/src/regex-matches";
+import { analyzeRedosRisk } from "../packages/forge-core/src/regex-redos";
 
 assert.equal(normalizeFlags("igx"), "gi");
 assert.equal(toggleFlag("g", "i"), "gi");

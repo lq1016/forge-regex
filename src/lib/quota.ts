@@ -39,6 +39,12 @@ export type QuotaResult = {
   isGuest: boolean;
 };
 
+/** Identity injected by ststudio Flask proxy (CN embed). */
+export type CnProxyIdentity = {
+  userId: string | null;
+  isPro: boolean;
+};
+
 export function clientIp(req: NextRequest): string {
   const xf = req.headers.get("x-forwarded-for");
   if (xf) {
@@ -76,6 +82,21 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** Validate shared secret from ststudio proxy. */
+export function parseCnProxyIdentity(req: NextRequest): CnProxyIdentity | null {
+  const expected = process.env.FORGE_CN_PROXY_SECRET || "";
+  if (!expected) return null;
+  const got = req.headers.get("x-forge-proxy-secret") || "";
+  if (!got || got !== expected) return null;
+  const rawId = (req.headers.get("x-forge-cn-user-id") || "").trim();
+  const userId = rawId && /^[0-9]{1,12}$/.test(rawId) ? rawId : null;
+  const isProHeader = (req.headers.get("x-forge-cn-pro") || "").trim();
+  return {
+    userId,
+    isPro: isProHeader === "1" || isProHeader.toLowerCase() === "true",
+  };
+}
+
 function readEmailCount(email: string, day: string): number {
   ensureDbReady();
   const row = getDb()
@@ -95,6 +116,31 @@ function incrementEmailCount(email: string, day: string): number {
     )
     .run(email, day);
   return readEmailCount(email, day);
+}
+
+function cnUserKey(userId: string): string {
+  return `stu:${userId}`;
+}
+
+function readCnUserCount(userKey: string, day: string): number {
+  ensureDbReady();
+  const row = getDb()
+    .prepare("SELECT count FROM cn_user_usage WHERE user_key = ? AND day = ?")
+    .get(userKey, day) as { count: number } | undefined;
+  return row?.count ?? 0;
+}
+
+function incrementCnUserCount(userKey: string, day: string): number {
+  ensureDbReady();
+  getDb()
+    .prepare(
+      `
+      INSERT INTO cn_user_usage (user_key, day, count) VALUES (?, ?, 1)
+      ON CONFLICT(user_key, day) DO UPDATE SET count = count + 1
+    `
+    )
+    .run(userKey, day);
+  return readCnUserCount(userKey, day);
 }
 
 function readIpCount(ip: string, day: string): number {
@@ -147,7 +193,6 @@ function guestRemaining(ip: string, fp: string | null, day: string): {
   const ipLeft = Math.max(0, GUEST_IP_DAILY_LIMIT - ipUsed);
 
   if (!fp) {
-    // No fingerprint yet — fall back to IP-only guest cap (same as GUEST_DAILY).
     const remaining = Math.min(
       Math.max(0, GUEST_DAILY_LIMIT - ipUsed),
       ipLeft
@@ -161,6 +206,156 @@ function guestRemaining(ip: string, fp: string | null, day: string): {
     ipLeft
   );
   return { used: fpUsed, remaining };
+}
+
+/** CN embed quota (ststudio user id / guest fp), no Forge email session. */
+export function getCnProxyUsage(
+  cn: CnProxyIdentity,
+  ip = "unknown",
+  fp: string | null = null
+): {
+  used: number;
+  remaining: number;
+  limit: number;
+  isPro: boolean;
+  email: string | null;
+  needsAuth: boolean;
+  isGuest: boolean;
+} {
+  ensureDbReady();
+  const day = todayUtc();
+
+  if (cn.isPro) {
+    return {
+      used: 0,
+      remaining: -1,
+      limit: -1,
+      isPro: true,
+      email: null,
+      needsAuth: false,
+      isGuest: false,
+    };
+  }
+
+  if (!cn.userId) {
+    const { used, remaining } = guestRemaining(ip, fp, day);
+    return {
+      used,
+      remaining,
+      limit: GUEST_DAILY_LIMIT,
+      isPro: false,
+      email: null,
+      needsAuth: remaining === 0,
+      isGuest: true,
+    };
+  }
+
+  const key = cnUserKey(cn.userId);
+  const used = readCnUserCount(key, day);
+  const ipUsed = readIpCount(ip, day);
+  const remaining = Math.max(
+    0,
+    Math.min(FREE_DAILY_LIMIT - used, FREE_IP_LIMIT - ipUsed)
+  );
+
+  return {
+    used,
+    remaining,
+    limit: FREE_DAILY_LIMIT,
+    isPro: false,
+    email: null,
+    needsAuth: false,
+    isGuest: false,
+  };
+}
+
+export function checkCnProxyQuota(
+  cn: CnProxyIdentity,
+  ip = "unknown",
+  fp: string | null = null
+): QuotaResult {
+  const usage = getCnProxyUsage(cn, ip, fp);
+  if (usage.isPro) {
+    return {
+      allowed: true,
+      remaining: -1,
+      limit: -1,
+      isPro: true,
+      email: null,
+      needsAuth: false,
+      isGuest: false,
+    };
+  }
+  if (usage.isGuest) {
+    return {
+      allowed: usage.remaining > 0,
+      remaining: usage.remaining,
+      limit: GUEST_DAILY_LIMIT,
+      isPro: false,
+      email: null,
+      needsAuth: usage.remaining === 0,
+      isGuest: true,
+    };
+  }
+  return {
+    allowed: usage.remaining > 0,
+    remaining: usage.remaining,
+    limit: FREE_DAILY_LIMIT,
+    isPro: false,
+    email: null,
+    needsAuth: false,
+    isGuest: false,
+  };
+}
+
+export function incrementCnProxyQuota(
+  cn: CnProxyIdentity,
+  ip = "unknown",
+  fp: string | null = null
+): QuotaResult {
+  const before = checkCnProxyQuota(cn, ip, fp);
+  if (!before.allowed || before.isPro) return before;
+
+  const day = todayUtc();
+
+  if (before.isGuest) {
+    const nextIp = incrementIpCount(ip, day);
+    const nextFp = fp ? incrementFpCount(fp, day) : nextIp;
+    const remaining = Math.min(
+      fp
+        ? Math.max(0, GUEST_DAILY_LIMIT - nextFp)
+        : Math.max(0, GUEST_DAILY_LIMIT - nextIp),
+      Math.max(0, GUEST_IP_DAILY_LIMIT - nextIp)
+    );
+    return {
+      allowed: true,
+      remaining,
+      limit: GUEST_DAILY_LIMIT,
+      isPro: false,
+      email: null,
+      needsAuth: remaining === 0,
+      isGuest: true,
+    };
+  }
+
+  if (!cn.userId) return before;
+
+  const nextUser = incrementCnUserCount(cnUserKey(cn.userId), day);
+  const nextIp = incrementIpCount(ip, day);
+  const remaining = Math.max(
+    0,
+    Math.min(FREE_DAILY_LIMIT - nextUser, FREE_IP_LIMIT - nextIp)
+  );
+
+  return {
+    allowed: true,
+    remaining,
+    limit: FREE_DAILY_LIMIT,
+    isPro: false,
+    email: null,
+    needsAuth: false,
+    isGuest: false,
+  };
 }
 
 /** Get current usage info (no side effects). */

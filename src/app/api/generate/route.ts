@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import {
   checkAndIncrement,
+  checkCnProxyQuota,
   checkQuota,
   clientIp,
   fingerprintFromRequest,
+  incrementCnProxyQuota,
+  parseCnProxyIdentity,
 } from "@/lib/quota";
 import { getCachedRegex, setCachedRegex } from "@/lib/generate-cache";
 import { resolveProEdition } from "@/lib/pro";
+import { buildRefineUserMessage, isRefineMode } from "@/lib/refine";
 
 /* ─── Types ─────────────────────────────────────────── */
 
@@ -122,10 +126,37 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const prompt = body.prompt;
-    const locale: "en" | "zh" = body.locale === "zh" ? "zh" : "en";
+    const cnProxy = parseCnProxyIdentity(req);
+    const locale: "en" | "zh" = cnProxy
+      ? "zh"
+      : body.locale === "zh"
+        ? "zh"
+        : "en";
     const fp = fingerprintFromRequest(req, body.fp);
+    const refineRaw = body.refine;
+    const refine =
+      refineRaw &&
+      typeof refineRaw === "object" &&
+      isRefineMode((refineRaw as { mode?: unknown }).mode) &&
+      typeof (refineRaw as { pattern?: unknown }).pattern === "string" &&
+      (refineRaw as { pattern: string }).pattern.length > 0
+        ? {
+            mode: (refineRaw as { mode: import("@/lib/refine").RefineMode }).mode,
+            pattern: String((refineRaw as { pattern: string }).pattern).slice(
+              0,
+              4000
+            ),
+            flags: String((refineRaw as { flags?: string }).flags || "").slice(
+              0,
+              16
+            ),
+          }
+        : null;
 
-    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+    if (
+      !refine &&
+      (!prompt || typeof prompt !== "string" || !prompt.trim())
+    ) {
       return NextResponse.json(
         { error: "Please provide a description of the pattern you want to match." },
         { status: 400 }
@@ -134,12 +165,15 @@ export async function POST(req: NextRequest) {
 
     const ip = clientIp(req);
     const edition = resolveProEdition(req);
-    const quotaCheck = await checkQuota(ip, fp, edition);
+    const quotaCheck = cnProxy
+      ? checkCnProxyQuota(cnProxy, ip, fp)
+      : await checkQuota(ip, fp, edition);
     if (quotaCheck.needsAuth) {
       return NextResponse.json(
         {
-          error:
-            locale === "zh"
+          error: cnProxy
+            ? "试用次数已用完，请登录 SilentTrace 账号后继续（每天 8 次）。"
+            : locale === "zh"
               ? "试用次数已用完，请用邮箱登录后继续（每天 8 次）。"
               : "Free trial used up. Sign in with email for 8 generations per day.",
           code: "sign_in_required",
@@ -167,38 +201,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const trimmed = prompt.trim().slice(0, 1500);
+    const bumpQuota = () =>
+      cnProxy
+        ? Promise.resolve(incrementCnProxyQuota(cnProxy, ip, fp))
+        : checkAndIncrement(ip, fp, edition);
 
-    const curated = curatedOverride(trimmed);
-    if (curated) {
-      const quota = await checkAndIncrement(ip, fp, edition);
-      setCachedRegex(trimmed, curated);
-      return NextResponse.json({
-        pattern: curated.pattern,
-        flags: curated.flags || "",
-        explanation: curated.explanation,
-        sample: curated.sample || "",
-        remaining: quota.remaining,
-        limit: quota.limit,
-        isPro: quota.isPro,
-        cached: false,
-        curated: true,
-      });
-    }
+    const trimmed = (
+      typeof prompt === "string" ? prompt : ""
+    )
+      .trim()
+      .slice(0, 1500);
 
-    const cached = getCachedRegex(trimmed);
-    if (cached) {
-      const quota = await checkAndIncrement(ip, fp, edition);
-      return NextResponse.json({
-        pattern: cached.pattern,
-        flags: cached.flags || "",
-        explanation: cached.explanation,
-        sample: cached.sample || "",
-        remaining: quota.remaining,
-        limit: quota.limit,
-        isPro: quota.isPro,
-        cached: true,
-      });
+    // Refine always hits the model (skip curated/cache so we don't return the same pattern).
+    if (!refine) {
+      const curated = curatedOverride(trimmed);
+      if (curated) {
+        const quota = await bumpQuota();
+        setCachedRegex(trimmed, curated);
+        return NextResponse.json({
+          pattern: curated.pattern,
+          flags: curated.flags || "",
+          explanation: curated.explanation,
+          sample: curated.sample || "",
+          remaining: quota.remaining,
+          limit: quota.limit,
+          isPro: quota.isPro,
+          cached: false,
+          curated: true,
+        });
+      }
+
+      const cached = getCachedRegex(trimmed);
+      if (cached) {
+        const quota = await bumpQuota();
+        return NextResponse.json({
+          pattern: cached.pattern,
+          flags: cached.flags || "",
+          explanation: cached.explanation,
+          sample: cached.sample || "",
+          remaining: quota.remaining,
+          limit: quota.limit,
+          isPro: quota.isPro,
+          cached: true,
+        });
+      }
     }
 
     if (!process.env.DEEPSEEK_API_KEY) {
@@ -214,11 +260,21 @@ export async function POST(req: NextRequest) {
     });
     const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
 
+    const userContent = refine
+      ? buildRefineUserMessage({
+          locale,
+          mode: refine.mode,
+          basePrompt: trimmed,
+          pattern: refine.pattern,
+          flags: refine.flags,
+        })
+      : trimmed;
+
     const completion = await client.chat.completions.create({
       model,
       messages: [
         { role: "system", content: buildSystemPrompt(locale) },
-        { role: "user", content: trimmed },
+        { role: "user", content: userContent },
       ],
       temperature: 0,
       max_tokens: 500,
@@ -286,9 +342,12 @@ export async function POST(req: NextRequest) {
       sample: sampleText,
     };
 
-    setCachedRegex(trimmed, result);
+    if (!refine && trimmed) {
+      setCachedRegex(trimmed, result);
+    }
 
-    const quota = await checkAndIncrement(ip, fp, edition);
+    // Only successful generations consume quota (failed paths above return earlier).
+    const quota = await bumpQuota();
 
     return NextResponse.json({
       ...result,
@@ -296,6 +355,7 @@ export async function POST(req: NextRequest) {
       limit: quota.limit,
       isPro: quota.isPro,
       cached: false,
+      refined: Boolean(refine),
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

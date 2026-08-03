@@ -10,10 +10,18 @@
     "check:examples": "npx --yes tsx scripts/check-examples.ts",
     "check:regex-tester": "npx --yes tsx scripts/check-regex-tester.ts",
     "check:regex-valid": "npx --yes tsx scripts/check-regex-valid.ts",
+    "check:refine-history": "npx --yes tsx scripts/check-refine-history.ts",
     "ih:remind": "node scripts/ih-remind.mjs",
-    "ih:remind:dry": "node scripts/ih-remind.mjs --dry-run"
+    "ih:remind:dry": "node scripts/ih-remind.mjs --dry-run",
+    "ih:comment": "node scripts/ih-daily-comment.mjs",
+    "ih:comment:dry": "node scripts/ih-daily-comment.mjs --dry-run",
+    "ih:post": "IH_AUTO_POST=1 node scripts/ih-publish-queue.mjs",
+    "ih:post:dry": "node scripts/ih-publish-queue.mjs --dry-run",
+    "ih:notify": "node scripts/ih-notify-poll.mjs",
+    "ih:notify:seed": "node scripts/ih-notify-poll.mjs --seed"
   },
   "dependencies": {
+    "@forge-regex/core": "workspace:*",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@stripe/stripe-js": "^9.12.0",
     "jose": "^6.2.4",
