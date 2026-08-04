@@ -94,7 +94,7 @@ function stripStrings(formula: string): string {
 }
 
 function extractFunctions(formula: string): string[] {
-  const body = stripStrings(formula);
+  const body = stripStrings(formula).toUpperCase();
   const names: string[] = [];
   const re = /\b([A-Z][A-Z0-9._]*)\s*\(/g;
   let m: RegExpExecArray | null;

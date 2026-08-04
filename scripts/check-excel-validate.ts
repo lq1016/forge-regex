@@ -22,6 +22,13 @@ const xl = validateFormula("=XLOOKUP(A1,B:B,C:C)", d2016);
 assert(xl.ok === true, "dialect still ok");
 assert(xl.ok && xl.blocked.includes("XLOOKUP"), "blocked XLOOKUP");
 
+const xlLower = validateFormula("=xlookup(A1,B:B,C:C)", d2016);
+assert(xlLower.ok === true, "lowercase dialect still ok");
+assert(
+  xlLower.ok && xlLower.blocked.includes("XLOOKUP"),
+  "blocked lowercase xlookup"
+);
+
 const safe = validateFormula("=SUMIF(A:A,\"华东\",C:C)", d2016);
 assert(safe.ok === true && safe.blocked.length === 0, "SUMIF ok on 2016");
 
