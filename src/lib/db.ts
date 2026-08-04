@@ -39,6 +39,15 @@ function ensureSchema(database: DatabaseSync): void {
       hit_count INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS excel_cache (
+      cache_key TEXT PRIMARY KEY NOT NULL,
+      prompt TEXT NOT NULL,
+      dialect TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      hit_count INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS shares (
       id TEXT PRIMARY KEY NOT NULL,
       email TEXT NOT NULL,

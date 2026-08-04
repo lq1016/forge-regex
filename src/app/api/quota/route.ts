@@ -5,6 +5,7 @@ import {
   getCnProxyUsage,
   getUsage,
   parseCnProxyIdentity,
+  type QuotaTool,
 } from "@/lib/quota";
 import { resolveProEdition } from "@/lib/pro";
 
@@ -14,14 +15,24 @@ import { resolveProEdition } from "@/lib/pro";
  * Pass X-Forge-Edition: cn|global (or ?edition=) for regional Pro.
  * CN embed: Flask proxy sends X-Forge-Proxy-Secret + CN user/pro headers.
  */
+function parseTool(raw: string | null): QuotaTool {
+  return raw === "excel" ? "excel" : "regex";
+}
+
 export async function GET(req: NextRequest) {
   const fp =
     fingerprintFromRequest(req) ||
     fingerprintFromRequest(req, req.nextUrl.searchParams.get("fp"));
   const cnProxy = parseCnProxyIdentity(req);
+  const tool = parseTool(req.nextUrl.searchParams.get("tool"));
   if (cnProxy) {
-    const usage = getCnProxyUsage(cnProxy, clientIp(req), fp);
-    return NextResponse.json({ ...usage, edition: "cn", cnProxy: true });
+    const usage = getCnProxyUsage(cnProxy, clientIp(req), fp, tool);
+    return NextResponse.json({
+      ...usage,
+      edition: "cn",
+      cnProxy: true,
+      tool,
+    });
   }
   const edition = resolveProEdition(req);
   const usage = await getUsage(clientIp(req), fp, edition);

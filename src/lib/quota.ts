@@ -27,6 +27,8 @@ const FREE_IP_LIMIT = Math.max(
   Number(process.env.FREE_IP_DAILY_LIMIT || "40") || 40
 );
 
+export type QuotaTool = "regex" | "excel";
+
 export type QuotaResult = {
   allowed: boolean;
   remaining: number;
@@ -44,6 +46,10 @@ export type CnProxyIdentity = {
   userId: string | null;
   isPro: boolean;
 };
+
+function toolPrefix(tool: QuotaTool): string {
+  return tool === "excel" ? "excel:" : "";
+}
 
 export function clientIp(req: NextRequest): string {
   const xf = req.headers.get("x-forwarded-for");
@@ -118,8 +124,12 @@ function incrementEmailCount(email: string, day: string): number {
   return readEmailCount(email, day);
 }
 
-function cnUserKey(userId: string): string {
-  return `stu:${userId}`;
+function cnUserKey(userId: string, tool: QuotaTool = "regex"): string {
+  return `${toolPrefix(tool)}stu:${userId}`;
+}
+
+function scopedKey(raw: string, tool: QuotaTool): string {
+  return `${toolPrefix(tool)}${raw}`;
 }
 
 function readCnUserCount(userKey: string, day: string): number {
@@ -212,7 +222,8 @@ function guestRemaining(ip: string, fp: string | null, day: string): {
 export function getCnProxyUsage(
   cn: CnProxyIdentity,
   ip = "unknown",
-  fp: string | null = null
+  fp: string | null = null,
+  tool: QuotaTool = "regex"
 ): {
   used: number;
   remaining: number;
@@ -238,7 +249,11 @@ export function getCnProxyUsage(
   }
 
   if (!cn.userId) {
-    const { used, remaining } = guestRemaining(ip, fp, day);
+    const { used, remaining } = guestRemaining(
+      scopedKey(ip, tool),
+      fp ? scopedKey(fp, tool) : null,
+      day
+    );
     return {
       used,
       remaining,
@@ -250,9 +265,9 @@ export function getCnProxyUsage(
     };
   }
 
-  const key = cnUserKey(cn.userId);
+  const key = cnUserKey(cn.userId, tool);
   const used = readCnUserCount(key, day);
-  const ipUsed = readIpCount(ip, day);
+  const ipUsed = readIpCount(scopedKey(ip, tool), day);
   const remaining = Math.max(
     0,
     Math.min(FREE_DAILY_LIMIT - used, FREE_IP_LIMIT - ipUsed)
@@ -272,9 +287,10 @@ export function getCnProxyUsage(
 export function checkCnProxyQuota(
   cn: CnProxyIdentity,
   ip = "unknown",
-  fp: string | null = null
+  fp: string | null = null,
+  tool: QuotaTool = "regex"
 ): QuotaResult {
-  const usage = getCnProxyUsage(cn, ip, fp);
+  const usage = getCnProxyUsage(cn, ip, fp, tool);
   if (usage.isPro) {
     return {
       allowed: true,
@@ -311,16 +327,17 @@ export function checkCnProxyQuota(
 export function incrementCnProxyQuota(
   cn: CnProxyIdentity,
   ip = "unknown",
-  fp: string | null = null
+  fp: string | null = null,
+  tool: QuotaTool = "regex"
 ): QuotaResult {
-  const before = checkCnProxyQuota(cn, ip, fp);
+  const before = checkCnProxyQuota(cn, ip, fp, tool);
   if (!before.allowed || before.isPro) return before;
 
   const day = todayUtc();
 
   if (before.isGuest) {
-    const nextIp = incrementIpCount(ip, day);
-    const nextFp = fp ? incrementFpCount(fp, day) : nextIp;
+    const nextIp = incrementIpCount(scopedKey(ip, tool), day);
+    const nextFp = fp ? incrementFpCount(scopedKey(fp, tool), day) : nextIp;
     const remaining = Math.min(
       fp
         ? Math.max(0, GUEST_DAILY_LIMIT - nextFp)
@@ -340,8 +357,8 @@ export function incrementCnProxyQuota(
 
   if (!cn.userId) return before;
 
-  const nextUser = incrementCnUserCount(cnUserKey(cn.userId), day);
-  const nextIp = incrementIpCount(ip, day);
+  const nextUser = incrementCnUserCount(cnUserKey(cn.userId, tool), day);
+  const nextIp = incrementIpCount(scopedKey(ip, tool), day);
   const remaining = Math.max(
     0,
     Math.min(FREE_DAILY_LIMIT - nextUser, FREE_IP_LIMIT - nextIp)
