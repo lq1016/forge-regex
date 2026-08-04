@@ -128,7 +128,7 @@ Leave thin shims in `src/lib/regex-flags.ts` etc. that re-export from `@forge-re
 - [ ] **Step 5: Run checks**
 
 ```bash
-cd /Users/liuqiang/cursorProjects/forge-regex
+cd /Users/liuqiang/cursorProjects/works/forge-regex
 pnpm install
 npm run check:regex-tester
 npm run check:regex-valid

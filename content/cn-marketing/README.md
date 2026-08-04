@@ -21,7 +21,7 @@
 
 ## 截图（绝对路径前缀）
 
-`/Users/liuqiang/cursorProjects/forge-regex/content/cn-marketing/assets/`
+`/Users/liuqiang/cursorProjects/works/forge-regex/content/cn-marketing/assets/`
 
 | 文件 | 内容 |
 |------|------|
