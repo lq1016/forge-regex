@@ -1,0 +1,24 @@
+---
+description: Site footer must always sit at the bottom of the viewport
+alwaysApply: true
+---
+
+# Sticky site footer
+
+The site footer / bottom banner (`SiteFooter`) must **always** sit at the **bottom of the viewport**, never floating in the middle of short pages.
+
+## Required pattern
+
+1. Root layout `body`: `min-h-dvh flex flex-col` (not only `min-h-full`).
+2. Page shell wrapping header + main + footer: `min-h-dvh flex flex-col`.
+3. Main content area: `flex-1` (grows to fill remaining space).
+4. Footer: `mt-auto` (or rely on flex-1 main pushing it down).
+
+## Do not
+
+- Place the footer directly under short content so empty space sits **below** the footer.
+- Use height chains that collapse (`h-full` / `min-h-full` alone without a viewport minimum).
+
+## When adding pages
+
+Any new page that includes `SiteFooter` must follow this shell. Prefer reusing existing page shells (`ForgeHome`, pricing clients, `MySharesPage`) rather than inventing a new layout.

@@ -177,11 +177,19 @@
 
 .forge-cn__sub {
   margin: 0 auto;
-  max-width: 28rem;
+  max-width: none;
   color: var(--forge-muted);
   font-size: 1.05rem;
   line-height: 1.65;
-  text-wrap: pretty;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .forge-cn__sub {
+    white-space: normal;
+    max-width: 22rem;
+    text-wrap: pretty;
+  }
 }
 
 .forge-cn__prompt-wrap {

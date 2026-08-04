@@ -4,11 +4,9 @@ import {
   buildHighlightParts,
   hasFlag,
   isValidRegExp,
-  loadLocalHistory,
   normalizeFlags,
   pushLocalHistory,
   toggleFlag,
-  type HistoryItem,
   type RefineMode,
   FLAG_CHIPS,
   type FlagChip,
@@ -127,13 +125,11 @@ export function App() {
   const [hasPro, setHasPro] = useState(boot.hasPro);
   const [authenticated, setAuthenticated] = useState(boot.authenticated);
   const [patternDirty, setPatternDirty] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [copied, setCopied] = useState(false);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [shortcutLabel, setShortcutLabel] = useState("Ctrl");
 
   useEffect(() => {
-    setHistory(loadLocalHistory());
     if (/Mac|iPhone|iPad/.test(navigator.platform)) setShortcutLabel("⌘");
     void (async () => {
       try {
@@ -169,15 +165,13 @@ export function App() {
 
   const remember = useCallback(
     (next: RegexResult, nextPrompt: string, nextTest: string) => {
-      setHistory(
-        pushLocalHistory({
-          prompt: nextPrompt,
-          pattern: next.pattern,
-          flags: next.flags,
-          testText: nextTest,
-          explanation: next.explanation,
-        })
-      );
+      pushLocalHistory({
+        prompt: nextPrompt,
+        pattern: next.pattern,
+        flags: next.flags,
+        testText: nextTest,
+        explanation: next.explanation,
+      });
     },
     []
   );
@@ -282,18 +276,6 @@ export function App() {
     remember(ex.result, ex.label, ex.sample);
   };
 
-  const restore = (item: HistoryItem) => {
-    setPrompt(item.prompt);
-    setResult({
-      pattern: item.pattern,
-      flags: normalizeFlags(item.flags),
-      explanation: item.explanation || [],
-    });
-    setTestText(item.testText || DEFAULT_TEST);
-    setPatternDirty(false);
-    setActiveLabel(null);
-  };
-
   const copyPattern = async () => {
     if (!result) return;
     await navigator.clipboard.writeText(`/${result.pattern}/${flags}`);
@@ -370,21 +352,6 @@ export function App() {
           </p>
         ) : null}
       </header>
-
-      {history.length > 0 ? (
-        <section className="forge-cn__history forge-cn__enter-2">
-          <h2>最近</h2>
-          <ul>
-            {history.slice(0, 8).map((item) => (
-              <li key={item.id}>
-                <button type="button" onClick={() => restore(item)}>
-                  {item.prompt.trim() || `/${item.pattern.slice(0, 36)}/`}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <div className="forge-cn__prompt-wrap forge-cn__enter-2">
         <label className="sr-only" htmlFor="forge-prompt" style={{ display: "none" }}>
