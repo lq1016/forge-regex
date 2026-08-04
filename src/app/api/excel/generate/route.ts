@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const blocked = validation.ok ? validation.blocked : validation.blocked;
+    const blocked = validation.blocked;
     const warning = blocked.length > 0 ? dialectWarning(blocked, dialect) : null;
 
     const payload = {
